@@ -1,0 +1,6 @@
+[project]
+name = "iso3166-scraper"
+version = "0.0.1"
+description = "Scraper to get iso countries"
+authors = ["LudoCarlu"]
+requires-python = ">=3.12"

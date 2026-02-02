@@ -1,14 +1,11 @@
-<<<<<<< HEAD
-=======
 # Output files
 output/
+data/
+downloaded_files/
+logs/
 
-<<<<<<< HEAD
->>>>>>> 93e1039 (push locally develop scraper for iso3166)
-=======
 .DS_Store
 
->>>>>>> 6218a12 (.gitignore udpate)
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -109,7 +106,7 @@ ipython_config.py
 #   Similar to Pipfile.lock, it is generally recommended to include uv.lock in version control.
 #   This is especially recommended for binary packages to ensure reproducibility, and is more
 #   commonly ignored for libraries.
-#uv.lock
+uv.lock
 
 # poetry
 #   Similar to Pipfile.lock, it is generally recommended to include poetry.lock in version control.
@@ -179,8 +176,5 @@ cython_debug/
 #.idea/
 
 # PyPI configuration file
-<<<<<<< HEAD
 .pypirc
-=======
 .pypirc
->>>>>>> 93e1039 (push locally develop scraper for iso3166)
