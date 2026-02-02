@@ -4,18 +4,64 @@ This script scrapes the main page, retrieving all country codes and statuses, an
 
 The aim is to obtain the equivalent of the “country-codes.csv” file
 
-At the moment, I only parse the english links
-
 ```
 pip install requirements.txt
-python scraper.py
+
+uv run iso3166_scraper/src/main.py 
+python iso3166_scraper/src/main.py
 ```
 
-Produce 3 files in an output/ directory
+Produce 3 files in an data/YYYYMMDD/ directory
 
-- YYYYMMDD_country-codes.csv
-- YYYYMMDD_country-codes-collection.csv
-- YYYYMMDD_code-elements-statuses.csv
+- countries.csv
+- country-codes-collection.csv
+- subdivisions.csv
+
+### Output of this script 
+
+**country_codes_collection.csv**
+
+| Field name |
+|:-|
+|alpha_2_code|
+|short_name_lower_case|
+|status|
+|page_id|
+
+**countries.csv**
+
+| Field name |
+|:-|
+|alpha_2_code|
+|alpha_3_code|
+|alpha_4_code|
+|numeric_code|
+|short_name|
+|short_name_lower_case|
+|full_name|
+|independent|
+|territory_name|
+|status|
+|status_remark|
+|remarks|
+|remark_part_1|
+|remark_part_2|
+|remark_part_3|
+
+**subdivisions.csv**
+
+| Field name |
+|:-|
+|alpha_2_code|
+|alpha_3_code|
+|numeric_code|
+|subdivision_category|
+|subdivision_code|
+|subdivision_name|
+|local_variant|
+|language_code|
+|romanization_system|
+|parent_subdivision_code|
 
 ### Decoding table of ISO 3166-1 alpha-2 codes
 
@@ -185,3 +231,5 @@ This decoding table provides the user with a quick overview of the entire set of
 |subdivision_parent| Code of the parent subdivision|
 |subdivision_name| Subdivision name|
 |romanization_system| Romanization system used to transcript the name|
+
+
