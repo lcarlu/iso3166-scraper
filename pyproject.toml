@@ -2,5 +2,12 @@
 name = "iso3166-scraper"
 version = "0.0.1"
 description = "Scraper to get iso countries"
-authors = ["LudoCarlu"]
+authors = [{ name = "LudoCarlu" }]
 requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.13.4",
+    "pandas>=2.3.1",
+    "selenium>=4.34.2",
+    "seleniumbase>=4.40.6",
+    "unidecode>=1.4.0",
+]

@@ -5,17 +5,17 @@ This script scrapes the main page, retrieving all country codes and statuses, an
 The aim is to obtain the equivalent of the “country-codes.csv” file
 
 ```
-pip install requirements.txt
+uv sync
 
-uv run iso3166_scraper/src/main.py 
-python iso3166_scraper/src/main.py
+uv run iso3166_scraper/src/main.py
 ```
 
-Produce 3 files in an data/YYYYMMDD/ directory
+Produce 4 files in an data/YYYYMMDD/ directory
 
 - countries.csv
 - country-codes-collection.csv
 - subdivisions.csv
+- languages.csv
 
 ### Output of this script 
 
@@ -62,6 +62,17 @@ Produce 3 files in an data/YYYYMMDD/ directory
 |language_code|
 |romanization_system|
 |parent_subdivision_code|
+
+**languages.csv**
+
+| Field name |
+|:-|
+|alpha_2_code|
+|alpha_3_code|
+|numeric_code|
+|administrative_language_alpha_2_code|
+|administrative_language_alpha_3_code|
+|local_short_name|
 
 ### Decoding table of ISO 3166-1 alpha-2 codes
 

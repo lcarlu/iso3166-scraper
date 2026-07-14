@@ -4,14 +4,13 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from seleniumbase import Driver
-import asyncio
 import pandas as pd
-from datetime import date, datetime
-from utils import async_measure_execution_time, save_file
+from datetime import date
+from pathlib import Path
+from utils import measure_execution_time, save_file
 from classes import Country, CodeElement, CodeElementStatus
 from typing import List, Dict, Any
-from parser import *
-import sys
+from parser import parse_code_elements_statuses, parse_country_codes_collection, parse_country
 from config.logger import get_logger
 import argparse
 import itertools
@@ -65,6 +64,15 @@ SUBDIVISIONS_EXCEPTED_COLUMNS = [
     "parent_subdivision_code"
 ]
 
+LANGUAGES_EXPECTED_COLUMNS = [
+    "alpha_2_code",
+    "alpha_3_code",
+    "numeric_code",
+    "administrative_language_alpha_2_code",
+    "administrative_language_alpha_3_code",
+    "local_short_name"
+]
+
 def get_country_codes_collection_html(driver, url: str) -> str:
 
     # open URL using UC mode with 6 second reconnect time to bypass initial detection
@@ -79,9 +87,10 @@ def get_country_codes_collection_html(driver, url: str) -> str:
         # Accept cookies
         wait = WebDriverWait(driver, 20)
         wait.until(EC.element_to_be_clickable((By.ID, "onetrust-accept-btn-handler"))).click()
-    
-    except Exception as expection:
-        logger.error(f"{expection=}")
+
+    except TimeoutException:
+        # Cookie banner did not appear (e.g. already accepted) - safe to continue
+        logger.debug("No cookie banner found within timeout, continuing")
 
     # take a screenshot of the current page and save it
     #driver.save_screenshot("cloudflare-challenge2.png")
@@ -116,7 +125,6 @@ def get_all_countries_languages(countries: List[Country]) -> List[Dict[str, Any]
 
 def generate_csv(input: List[Dict[str, str]], file_path: Path, expected_columns: List[str]) -> None:
 
-    today = date.today()
     df = pd.DataFrame.from_dict(input, dtype=str)
     logger.info(df.head(10))
     logger.info(df.shape)
@@ -144,8 +152,9 @@ def main() -> None:
     downloaded_files_dir: Path = DATA_DIR / formatted_start_date / "downloaded_files" / arguments.language
     output_files_dir: Path = DATA_DIR / formatted_start_date / "output_files" / arguments.language
 
+    driver = Driver(uc=True, headless=True)
+
     try:
-        driver = Driver(uc=True, headless=True)
         country_codes_collection_html = get_country_codes_collection_html(driver, country_codes_collection_url)
 
         # Save html content
@@ -195,11 +204,15 @@ def main() -> None:
         countries_subdivisions = get_all_countries_subdivisions(countries)
         logger.info(f"{countries_subdivisions=}")
 
+        countries_languages = get_all_countries_languages(countries)
+        logger.info(f"{countries_languages=}")
+
         # Generate csv files
 
         countries_file_path = output_files_dir / "countries.csv"
         country_codes_collection_file_path = output_files_dir / "country_codes_collection.csv"
         subdivisions_file_path = output_files_dir / "subdivisions.csv"
+        languages_file_path = output_files_dir / "languages.csv"
 
         generate_csv(
             [c.to_dict() for c in countries],
@@ -217,6 +230,12 @@ def main() -> None:
             countries_subdivisions,
             subdivisions_file_path,
             SUBDIVISIONS_EXCEPTED_COLUMNS
+        )
+
+        generate_csv(
+            countries_languages,
+            languages_file_path,
+            LANGUAGES_EXPECTED_COLUMNS
         )
 
     except Exception as e:
