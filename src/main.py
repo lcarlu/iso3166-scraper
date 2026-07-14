@@ -1,4 +1,3 @@
-from email.policy import default
 from seleniumbase.core.sb_driver import DriverMethods
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException
@@ -76,6 +75,15 @@ SUBDIVISIONS_EXCEPTED_COLUMNS: list[str] = [
 ]
 
 LANGUAGES_EXPECTED_COLUMNS: list[str] = [
+    "alpha_2_code",
+    "alpha_3_code",
+    "numeric_code",
+    "administrative_language_alpha_2_code",
+    "administrative_language_alpha_3_code",
+    "local_short_name"
+]
+
+ADDITIONAL_INFORMATION_EXPECTED_COLUMNS: list[str] = [
     "alpha_2_code",
     "alpha_3_code",
     "numeric_code",
@@ -241,6 +249,11 @@ def get_all_countries_languages(countries: List[Country]) -> List[Dict[str, Any]
     flattened_languages = list(itertools.chain(*languages))
     return flattened_languages
 
+def get_all_countries_additional_information(countries: List[Country]) -> List[Dict[str, Any]]:
+    additional_information = [country.get_additional_information() for country in countries]
+    flattened_additional_information = list(itertools.chain(*additional_information))
+    return flattened_additional_information
+
 
 def generate_csv(input: List[Dict[str, str]], file_path: Path, expected_columns: List[str]) -> None:
 
@@ -318,8 +331,10 @@ def main() -> None:
 
         countries_subdivisions = get_all_countries_subdivisions(countries)
         countries_languages = get_all_countries_languages(countries)
+        countries_additional_information = get_all_countries_additional_information(countries)
         logger.debug(f"{countries_subdivisions=}")
         logger.debug(f"{countries_languages=}")
+        logger.debug(f"{countries_additional_information=}")
 
         # Generate csv files
 
@@ -327,6 +342,7 @@ def main() -> None:
         country_codes_collection_file_path = output_files_dir / "country_codes_collection.csv"
         subdivisions_file_path = output_files_dir / "subdivisions.csv"
         languages_file_path = output_files_dir / "languages.csv"
+        additional_information_file_path = output_files_dir / "additional_information.csv"
 
         generate_csv(
             [asdict(c) for c in countries],
@@ -350,6 +366,12 @@ def main() -> None:
             countries_languages,
             languages_file_path,
             LANGUAGES_EXPECTED_COLUMNS
+        )
+
+        generate_csv(
+            countries_additional_information,
+            additional_information_file_path,
+            ADDITIONAL_INFORMATION_EXPECTED_COLUMNS
         )
 
     except Exception:

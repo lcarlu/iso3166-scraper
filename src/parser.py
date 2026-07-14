@@ -2,8 +2,8 @@ from bs4.element import Tag, ResultSet
 from bs4 import BeautifulSoup
 from typing import List, Dict, Optional
 import re
-from src.utils import measure_execution_time, none_if, to_snake_case
-from src.classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, Language
+from src.utils import measure_execution_time, none_if
+from src.classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, Language, AdditionalInformation
 from src.config.logger import get_logger
 
 logger = get_logger(__name__)
@@ -176,6 +176,48 @@ def parse_country_summary(html :str, language :str ='en', alpha_2_code: Optional
 
     return summary
 
+ADDITIONAL_INFORMATION_COLUMN_COUNT = 3
+
+def parse_country_additional_information(html: str, alpha_2_code: Optional[str] = None) -> list[AdditionalInformation]:
+    administrative_language_alpha_2_position = administrative_language_alpha_3_position = local_short_name_position = None
+
+    soup = BeautifulSoup(html, "html.parser")
+    additional_information_table: Optional[Tag] = soup.find('div', id='country-additional-info')
+    additional_information_table_headers: ResultSet[Tag] = additional_information_table.find("thead").find_all("th")
+
+    i = 0
+    for header in additional_information_table_headers:
+        match header.text:
+            case "Administrative language(s) alpha-2" | "Code(s) langue(s) administrative(s) alpha-2":
+                administrative_language_alpha_2_position = i
+            case "Administrative language(s) alpha-3" | "Code(s) langue(s) administrative(s) alpha-3":
+                administrative_language_alpha_3_position = i
+            case "Local short name" | "Forme courte locale":
+                local_short_name_position = i
+        i += 1
+
+    additional_information_table_body_rows = additional_information_table.find("tbody").find_all("tr")
+
+    additional_information: List[AdditionalInformation] = []
+
+    for row in additional_information_table_body_rows:
+        data = row.find_all("td")
+
+        if len(data) < ADDITIONAL_INFORMATION_COLUMN_COUNT:
+            logger.warning(
+                f"[{alpha_2_code}] skipping malformed additional information row: "
+                f"expected {ADDITIONAL_INFORMATION_COLUMN_COUNT} columns, got {len(data)} "
+                f"({row.get_text(strip=True)!r})"
+            )
+            continue
+
+        additional_information.append(
+            AdditionalInformation(administrative_language_alpha_2_code=data[administrative_language_alpha_2_position].get_text(),
+                                  administrative_language_alpha_3_code=data[administrative_language_alpha_3_position].get_text(),
+                                  local_short_name=data[local_short_name_position].get_text()))
+
+    return additional_information
+
 SUBDIVISION_COLUMN_COUNT = 7
 
 @measure_execution_time
@@ -315,8 +357,9 @@ def parse_country(html: str, language :str ='en') -> Country:
     languages: List[Language] = parse_country_languages(html, alpha_2_code)
     subdivisions: List[Subdivision] = parse_country_subdivisions(html, alpha_2_code)
     changes: List[Change] = parse_country_changes(html, alpha_2_code)
+    additional_information: List[AdditionalInformation] = parse_country_additional_information(html, alpha_2_code)
 
-    logger.debug(f"[{alpha_2_code}] {summary=} {languages=} {subdivisions=} {changes=}")
+    logger.debug(f"[{alpha_2_code}] {summary=} {languages=} {subdivisions=} {changes=} {additional_information=}")
 
     country = Country(
         alpha_2_code= summary.get('alpha_2_code'),
@@ -336,12 +379,13 @@ def parse_country(html: str, language :str ='en') -> Country:
         remark_part_3= summary.get('remark_part_3'),
         languages= languages,
         subdivisions= subdivisions,
-        changes= changes
+        changes= changes,
+        additional_information= additional_information
     )
 
     logger.info(
         f"[{alpha_2_code}] parsed country: {len(languages)} languages, "
-        f"{len(subdivisions)} subdivisions, {len(changes)} changes"
+        f"{len(subdivisions)} subdivisions, {len(changes)} changes, {len(additional_information)} additional information"
     )
 
     return country

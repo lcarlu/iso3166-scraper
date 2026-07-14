@@ -20,6 +20,12 @@ class Language:
     local_short_name: Optional[str] = None
 
 @dataclass
+class AdditionalInformation:
+    administrative_language_alpha_2_code: Optional[str] = None
+    administrative_language_alpha_3_code: Optional[str] = None
+    local_short_name: Optional[str] = None
+
+@dataclass
 class Subdivision:
     subdivision_category: Optional[str] = None
     subdivision_code: Optional[str] = None
@@ -55,6 +61,7 @@ class Country:
     languages: Optional[List[Language]] = None
     subdivisions: Optional[List[Subdivision]] = None
     changes: Optional[List[Change]] = None
+    additional_information: Optional[List[AdditionalInformation]] = None
 
     def get_subdivisions(self) -> List[Dict[str, Any]]:
         return [
@@ -76,5 +83,13 @@ class Country:
             for language in self.languages
         ]
 
-
+    def get_additional_information(self) -> List[Dict[str, Any]]:
+        return [
+            asdict(additional_information) | {
+                'alpha_2_code': self.alpha_2_code,
+                'alpha_3_code': self.alpha_3_code,
+                'numeric_code': self.numeric_code
+            }
+            for additional_information in self.additional_information
+        ]
 

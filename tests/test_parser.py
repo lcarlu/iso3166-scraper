@@ -7,6 +7,7 @@ from src.parser import (
     parse_country_codes_collection,
     parse_code_elements_statuses,
     parse_country_subdivisions,
+    parse_country_additional_information,
     extract_alpha_2_code,
 )
 
@@ -34,6 +35,26 @@ def test_parse_country_nested_collections():
     assert len(country.languages) == 1
     assert len(country.subdivisions) == 7
     assert len(country.changes) == 2
+
+
+def test_parse_country_summary_fields_with_remark_parts():
+    # country_page_fr_en.html (France) has fields AD lacks, notably
+    # remark_part_1/2/3 and a populated additional-information table.
+    html = (FIXTURES_DIR / "country_page_fr_en.html").read_text()
+    country = parse_country(html, "en")
+
+    assert country.alpha_2_code == "FR"
+    assert country.alpha_3_code == "FRA"
+    assert country.numeric_code == "250"
+    assert country.short_name == "FRANCE"
+    assert country.full_name == "the French Republic"
+    assert country.remark_part_1.startswith("Comprises: Metropolitan France")
+    assert country.remark_part_2 is not None
+    assert country.remark_part_3 is not None
+
+    assert len(country.additional_information) == 1
+    assert country.additional_information[0].administrative_language_alpha_2_code == "fr"
+    assert country.additional_information[0].local_short_name == "France (la)"
 
 
 def test_parse_country_rejects_unsupported_language():
@@ -96,3 +117,33 @@ def test_parse_country_subdivisions_skips_malformed_rows_instead_of_crashing():
 
     assert len(subdivisions) == 1
     assert subdivisions[0].subdivision_code == "AA-01"
+
+
+def test_parse_country_additional_information_finds_table_nested_in_div():
+    # Regression test: the "country-additional-info" id lives on the <div>
+    # wrapping the table, not on the <table> itself. Looking it up as
+    # soup.find('table', id=...) always returns None and crashes.
+    html = """
+    <html><body>
+        <div id="country-additional-info">
+            <h3>Additional information</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Administrative language(s) alpha-2</th>
+                        <th>Administrative language(s) alpha-3</th>
+                        <th>Local short name</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>ca</td><td>cat</td><td>Andorra</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </body></html>
+    """
+
+    additional_information = parse_country_additional_information(html, alpha_2_code="ZZ")
+
+    assert len(additional_information) == 1
+    assert additional_information[0].administrative_language_alpha_2_code == "ca"
