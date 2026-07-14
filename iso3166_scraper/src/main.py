@@ -8,6 +8,7 @@ import pandas as pd
 from datetime import date
 from pathlib import Path
 from utils import measure_execution_time, save_file
+from dataclasses import asdict
 from classes import Country, CodeElement, CodeElementStatus
 from typing import List, Dict, Any
 from parser import parse_code_elements_statuses, parse_country_codes_collection, parse_country
@@ -215,13 +216,13 @@ def main() -> None:
         languages_file_path = output_files_dir / "languages.csv"
 
         generate_csv(
-            [c.to_dict() for c in countries],
+            [asdict(c) for c in countries],
             countries_file_path,
             COUNTRIES_EXPECTED_COLUMNS
         )
 
         generate_csv(
-            [c.to_dict() for c in country_codes_collection],
+            [asdict(c) for c in country_codes_collection],
             country_codes_collection_file_path,
             COUNTRY_CODES_COLLECTION_EXCEPTED_COLUMNS
         )

@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 from classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, Language
 from typing import List, Dict
+from dataclasses import asdict
 from utils import measure_execution_time, none_if, to_snake_case
 import re
 from pathlib import Path
@@ -277,6 +278,6 @@ if __name__ == '__main__':
         with open(file_path, 'r') as file:
             html = file.read()
             country: Country = parse_country(html, 'fr')
-            countries.append(country.to_dict())
+            countries.append(asdict(country))
      
     df = pd.DataFrame(countries).to_csv(data_dir / 'countries.csv', index=False, sep='|')
