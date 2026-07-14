@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from src.parser import parse_country, parse_country_codes_collection, parse_code_elements_statuses
+from src.parser import parse_country, parse_country_codes_collection, parse_code_elements_statuses, extract_alpha_2_code
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -46,3 +46,12 @@ def test_parse_country_codes_collection():
     assert ae.short_name_lower_case == "United Arab Emirates (the)"
     assert ae.status == "Officially assigned code elements"
     assert ae.page_id == "#iso:code:3166:AE"
+
+
+def test_extract_alpha_2_code_matches_the_rendered_country():
+    html = (FIXTURES_DIR / "country_page_ad.html").read_text()
+    assert extract_alpha_2_code(html) == "AD"
+
+
+def test_extract_alpha_2_code_returns_none_when_summary_missing():
+    assert extract_alpha_2_code("<html><body>no summary here</body></html>") is None

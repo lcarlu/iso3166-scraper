@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from typing import List, Dict
+from typing import List, Dict, Optional
 import re
 from src.utils import measure_execution_time, none_if, to_snake_case
 from src.classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, Language
@@ -82,6 +82,26 @@ def parse_country_codes_collection(html :str, code_elements_statuses :List[CodeE
         )
 
     return country_codes_collection
+
+def extract_alpha_2_code(html: str) -> Optional[str]:
+    """
+    Lightweight, language-agnostic extraction of the alpha-2 code, which is
+    always the summary table's first field. Used to verify a fetched country
+    page actually rendered the requested country before trusting it, since
+    the summary element can be present in the DOM before the SPA has
+    finished rendering that country's data.
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    core_view_summary = soup.find('div', 'core-view-summary')
+    if core_view_summary is None:
+        return None
+
+    first_line = core_view_summary.find('div', 'core-view-line')
+    if first_line is None:
+        return None
+
+    value_div = first_line.find('div', 'core-view-field-value')
+    return None if value_div is None else value_div.get_text().strip().upper()
 
 @measure_execution_time
 def parse_country_summary(html :str, language :str ='en') -> Dict[str, str]:

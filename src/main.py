@@ -19,7 +19,7 @@ import time
 
 from src.utils import measure_execution_time, save_file
 from src.classes import Country, CodeElement, CodeElementStatus
-from src.parser import parse_code_elements_statuses, parse_country_codes_collection, parse_country
+from src.parser import parse_code_elements_statuses, parse_country_codes_collection, parse_country, extract_alpha_2_code
 from src.config.logger import get_logger
 
 logger = get_logger(__name__)
@@ -110,13 +110,20 @@ def get_country_codes_collection_html(driver, url: str) -> str:
     # Get the html from the page
     return driver.page_source
 
-def get_country_html(driver, url: str) -> str:
+def get_country_html(driver, url: str, expected_alpha_2_code: str) -> str:
 
     driver.get(url)
     driver.refresh() # refresh the driver in order to change correctly the page source
     logger.debug(f"{driver.current_url=}")
     wait: WebDriverWait = WebDriverWait(driver, timeout=20)
     wait.until(EC.presence_of_element_located((By.CLASS_NAME, "core-view-summary")))
+
+    # The summary element can be present in the DOM before the Angular app
+    # has finished rendering the requested country (it can briefly still show
+    # the previous view), so wait until the rendered alpha-2 code actually
+    # matches what was requested before trusting the page source.
+    wait.until(lambda d: extract_alpha_2_code(d.page_source) == expected_alpha_2_code)
+
     return driver.page_source
 
 def fetch_country_codes_collection_html(url: str, downloaded_files_dir: Path, download: bool) -> str:
@@ -142,17 +149,20 @@ def fetch_country_codes_collection_html(url: str, downloaded_files_dir: Path, do
 
     return html
 
-def get_country_html_with_retries(driver, url: str, retries: int) -> str:
+def get_country_html_with_retries(url: str, expected_alpha_2_code: str, retries: int) -> str:
 
     last_error = WebDriverException(f"no attempt made for {url=}, retries={retries}")
 
     for attempt in range(1, retries + 1):
+        driver = get_uc_driver()
         try:
-            return get_country_html(driver, url)
+            return get_country_html(driver, url, expected_alpha_2_code)
         except (TimeoutException, WebDriverException) as e:
             last_error = e
             logger.warning(f"attempt {attempt}/{retries} failed for {url=}: {e}")
             time.sleep(2 * attempt)
+        finally:
+            driver.quit()
 
     raise last_error
 
@@ -166,7 +176,8 @@ def fetch_country_html(
     """
     Resolve a single country's HTML, reusing a previously downloaded file
     (checkpoint) when present so a crashed/retried run does not re-fetch it.
-    Creates and disposes its own driver so it can be called from worker threads.
+    Each retry attempt creates and disposes its own driver, so this can be
+    called from worker threads.
     """
     page_id = code_element.page_id
     if page_id is None:
@@ -182,11 +193,7 @@ def fetch_country_html(
     url: str = f"{base_url}{page_id}"
     logger.debug(f"{url=}")
 
-    driver = get_uc_driver()
-    try:
-        html: str = get_country_html_with_retries(driver, url, retries)
-    finally:
-        driver.quit()
+    html: str = get_country_html_with_retries(url, code_element.alpha_2_code, retries)
 
     if download:
         save_file(file_path, html)
