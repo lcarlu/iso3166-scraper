@@ -69,15 +69,26 @@ def test_parse_country_subdivisions_skips_malformed_rows_instead_of_crashing():
     # whole scraping run instead of just that one row.
     html = """
     <html><body>
-        <table><tbody><tr><td>languages table placeholder</td></tr></tbody></table>
-        <table><tbody>
-            <tr>
-                <td>Category</td><td>AA-01</td><td>Name One</td>
-                <td></td><td></td><td></td><td></td>
-            </tr>
-            <tr><td>Category</td><td>AA-02</td></tr>
-        </tbody></table>
-        <table><tbody><tr><td>changes table placeholder</td></tr></tbody></table>
+        <table id="subdivision">
+            <thead>
+                <tr>
+                    <th>Subdivision category</th>
+                    <th>3166-2 code</th>
+                    <th>Subdivision name</th>
+                    <th>Local variant</th>
+                    <th>Language code</th>
+                    <th>Romanization system</th>
+                    <th>Parent subdivision</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Category</td><td>AA-01</td><td>Name One</td>
+                    <td></td><td></td><td></td><td></td>
+                </tr>
+                <tr><td>Category</td><td>AA-02</td></tr>
+            </tbody>
+        </table>
     </body></html>
     """
 

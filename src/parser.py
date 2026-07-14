@@ -104,25 +104,11 @@ def parse_country_summary(html :str, language :str ='en', alpha_2_code: Optional
         raise Exception('Unexpected language')
 
     soup = BeautifulSoup(html, "html.parser")
-    summary = {}
+    summary: dict[str, Optional[str]] = {}
 
-    fr_to_en = {
-        "code_alpha_2" : "alpha_2_code",
-        "nom_court" : "short_name",
-        "forme_courte_du_nom_ecrite_en_minuscule" : "short_name_lower_case",
-        "nom_complet" : "full_name",
-        "code_alpha_3" : "alpha_3_code",
-        "code_numerique": "numeric_code",
-        "remarques" : "remarks",
-        "independant" : "independent",
-        "nom_de_territoire" : "territory_name",
-        "statut" : "status",
-        "remarque_concernant_le_statut" : "status_remark",
-        "remarque_partie_1" : "remark_part_1",
-        "remarque_partie_2" : "remark_part_2",
-        "remarque_partie_3" : "remark_part_3",
-        "code_alpha_4" : "alpha_4_code"
-    }
+    alpha_2_code = short_name = short_name_lower_case = full_name = alpha_3_code = numeric_code = remarks = \
+            independent = territory_name = status = status_remark = remark_part_1 = remark_part_2 = \
+                 remark_part_3 = alpha_4_code = None
 
     try:
         core_view_lines = soup.find('div', 'core-view-summary').find_all('div', 'core-view-line')
@@ -133,13 +119,57 @@ def parse_country_summary(html :str, language :str ='en', alpha_2_code: Optional
             field_name = None if core_view_field_name_div is None else core_view_field_name_div.get_text()
             field_value = None if core_view_field_value_div is None else core_view_field_value_div.get_text()
 
-            if field_name is not None:
-                normalised_field_name = to_snake_case(field_name)
+            if field_name is not None and field_value is not None and field_value != "":
+                field_value = field_value.replace("*", "")
+                match field_name:
+                    case "Alpha-2 code" | "Code alpha-2":
+                        alpha_2_code = none_if(field_value, '')  
+                    case "Short name" | "Nom court":
+                        short_name = none_if(field_value, '')
+                    case "Short name lower case" | "Forme courte du nom écrite en minuscule":
+                        short_name_lower_case = none_if(field_value, '')
+                    case "Full name" | "Nom complet":
+                        full_name = none_if(field_value, '')
+                    case "Alpha-3 code" | "Code alpha-3":
+                        alpha_3_code = none_if(field_value, '')
+                    case "Numeric code" | "Code numérique":
+                        numeric_code = none_if(field_value, '')
+                    case "Remarks" | "Remarques":
+                        remarks = none_if(field_value, '')
+                    case "Independent" | "Indépendant":
+                        independent = none_if(field_value, '')
+                    case "Territory name" | "Nom du territoire":
+                        territory_name = none_if(field_value, '')
+                    case "Status" | "Statut":
+                        status = none_if(field_value, '')
+                    case "Status remark" | "Remarque concernant le statut":
+                        status_remark = none_if(field_value, '')
+                    case "Remark part 1" | "Remarque, partie 1":
+                        remark_part_1 = none_if(field_value, '')
+                    case "Remark part 2" | "Remarque, partie 2":
+                        remark_part_2 = none_if(field_value, '')
+                    case "Remark part 3" | "Remarque, partie 3":
+                        remark_part_3 = none_if(field_value, '')
+                    case "Alpha-4 code" | "Code alpha-4":
+                        alpha_4_code = none_if(field_value, '')
 
-                if language == 'fr':
-                    normalised_field_name = fr_to_en[normalised_field_name]
-
-                summary[normalised_field_name] = none_if(field_value,'')
+        summary: dict[str, Optional[str]]  = {
+            "alpha_2_code": alpha_2_code,
+            "short_name": short_name,
+            "short_name_lower_case": short_name_lower_case,
+            "full_name": full_name,
+            "alpha_3_code": alpha_3_code,
+            "numeric_code": numeric_code,
+            "remarks": remarks,
+            "independent": independent,
+            "territory_name": territory_name,
+            "status": status,
+            "status_remark": status_remark,
+            "remark_part_1": remark_part_1,
+            "remark_part_2": remark_part_2,
+            "remark_part_3": remark_part_3,
+            "alpha_4_code": alpha_4_code
+        }
 
     except Exception as e:
         logger.error(f"[{alpha_2_code}] failed to parse country summary: {e}", exc_info=True)
