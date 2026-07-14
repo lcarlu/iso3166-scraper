@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from src.parser import parse_country, parse_country_codes_collection, parse_code_elements_statuses, extract_alpha_2_code
+from src.parser import (
+    parse_country,
+    parse_country_codes_collection,
+    parse_code_elements_statuses,
+    parse_country_subdivisions,
+    extract_alpha_2_code,
+)
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -55,3 +61,27 @@ def test_extract_alpha_2_code_matches_the_rendered_country():
 
 def test_extract_alpha_2_code_returns_none_when_summary_missing():
     assert extract_alpha_2_code("<html><body>no summary here</body></html>") is None
+
+
+def test_parse_country_subdivisions_skips_malformed_rows_instead_of_crashing():
+    # Regression test: a subdivision row with fewer than 7 <td> cells (e.g. a
+    # merged/empty cell) used to raise an uncaught IndexError and abort the
+    # whole scraping run instead of just that one row.
+    html = """
+    <html><body>
+        <table><tbody><tr><td>languages table placeholder</td></tr></tbody></table>
+        <table><tbody>
+            <tr>
+                <td>Category</td><td>AA-01</td><td>Name One</td>
+                <td></td><td></td><td></td><td></td>
+            </tr>
+            <tr><td>Category</td><td>AA-02</td></tr>
+        </tbody></table>
+        <table><tbody><tr><td>changes table placeholder</td></tr></tbody></table>
+    </body></html>
+    """
+
+    subdivisions = parse_country_subdivisions(html, alpha_2_code="ZZ")
+
+    assert len(subdivisions) == 1
+    assert subdivisions[0].subdivision_code == "AA-01"

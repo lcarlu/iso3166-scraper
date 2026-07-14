@@ -33,10 +33,7 @@ def parse_code_elements_statuses(html :str) -> List[CodeElementStatus]:
         if len(table_data) == 2:
             class_name = table_data[0].get('class')[0]
             text = table_data[1].get_text()
-            #status = status_text.lower().strip().replace(' ', '-').replace('-code-elements', '')
-            
             code_elements_statuses.append(CodeElementStatus(class_name, text))
-    #logger.info(f"parsed_code_elements_statuses : {code_elements_statuses}")
 
     return code_elements_statuses
 
@@ -58,15 +55,11 @@ def parse_country_codes_collection(html :str, code_elements_statuses :List[CodeE
         td_title = td.get('title') # short_name_lower_case
         td_anchor = td.find('a')
         td_anchor_href = None # page_id
-        td_anchor_text = None # alpha_2_code
         td_text = td.get_text() # alpha_2_code
 
         if td_anchor is not None:
             td_anchor_href = td_anchor.get('href')
-            #td_anchor_text = td_anchor.get_text()
 
-        #logger.info(f"""class: {td_class_name}, title: {td_title}, td_anchor: {td_anchor}, anchor_href: {td_anchor_href}, anchor_text: {td_anchor_text}, td_text: {td_text}""")
-        
         for code_element_status in code_elements_statuses:
             if code_element_status.class_name == td_class_name:
                 td_class = code_element_status.text
@@ -104,7 +97,7 @@ def extract_alpha_2_code(html: str) -> Optional[str]:
     return None if value_div is None else value_div.get_text().strip().upper()
 
 @measure_execution_time
-def parse_country_summary(html :str, language :str ='en') -> Dict[str, str]:
+def parse_country_summary(html :str, language :str ='en', alpha_2_code: Optional[str] = None) -> Dict[str, str]:
 
     if language not in ['en', 'fr']:
         raise Exception('Unexpected language')
@@ -146,97 +139,113 @@ def parse_country_summary(html :str, language :str ='en') -> Dict[str, str]:
                     normalised_field_name = fr_to_en[normalised_field_name]
 
                 summary[normalised_field_name] = none_if(field_value,'')
-        
+
     except Exception as e:
-        logger.error(e)
+        logger.error(f"[{alpha_2_code}] failed to parse country summary: {e}", exc_info=True)
 
     return summary
 
+SUBDIVISION_COLUMN_COUNT = 7
+
 @measure_execution_time
-def parse_country_subdivisions(html: str) -> List[Subdivision]:
+def parse_country_subdivisions(html: str, alpha_2_code: Optional[str] = None) -> List[Subdivision]:
 
     soup = BeautifulSoup(html, "html.parser")
     tables = soup.find_all('table')
     subdivisions: List[Subdivision] = []
 
     subdivisions_table = tables[-2]
-    #subdivisions_table = soup.find('table', {"id": "subdivision"})
-    #logger.info(f"{subdivisions_table=}")
-    
     subdivisions_rows = subdivisions_table.find('tbody').find_all('tr')
-    #logger.info(f"{subdivisions_rows=}")
 
     for subdivision_row in subdivisions_rows:
         subdivision_values = subdivision_row.find_all('td')
-        #logger.info(f"{subdivision_values=}")
 
-        subdivision = Subdivision(
-            subdivision_category= none_if(subdivision_values[0].get_text(),''),
-            subdivision_code= none_if(subdivision_values[1].get_text(),''),
-            subdivision_name= none_if(subdivision_values[2].get_text(),''),
-            local_variant= none_if(subdivision_values[3].get_text(),''),
-            language_code= none_if(subdivision_values[4].get_text(),''),
-            romanization_system= none_if(subdivision_values[5].get_text(),''),
-            parent_subdivision_code= none_if(subdivision_values[6].get_text(),'')
+        if len(subdivision_values) < SUBDIVISION_COLUMN_COUNT:
+            logger.warning(
+                f"[{alpha_2_code}] skipping malformed subdivision row: "
+                f"expected {SUBDIVISION_COLUMN_COUNT} columns, got {len(subdivision_values)} "
+                f"({subdivision_row.get_text(strip=True)!r})"
+            )
+            continue
+
+        subdivisions.append(
+            Subdivision(
+                subdivision_category= none_if(subdivision_values[0].get_text(),''),
+                subdivision_code= none_if(subdivision_values[1].get_text(),''),
+                subdivision_name= none_if(subdivision_values[2].get_text(),''),
+                local_variant= none_if(subdivision_values[3].get_text(),''),
+                language_code= none_if(subdivision_values[4].get_text(),''),
+                romanization_system= none_if(subdivision_values[5].get_text(),''),
+                parent_subdivision_code= none_if(subdivision_values[6].get_text(),'')
+            )
         )
-
-        #logger.info(f"{subdivision=}")
-        subdivisions.append(subdivision)
 
     return subdivisions
 
+LANGUAGE_COLUMN_COUNT = 3
+
 @measure_execution_time
-def parse_country_languages(html: str) -> List[Language]:
+def parse_country_languages(html: str, alpha_2_code: Optional[str] = None) -> List[Language]:
 
     soup = BeautifulSoup(html, "html.parser")
     tables = soup.find_all('table')
     languages: List[Language] = []
 
     languages_table = tables[-3]
-    #logger.info(f"{languages_table=}")
-    
     languages_rows = languages_table.find('tbody').find_all('tr')
-    
+
     for language_row in languages_rows:
         language_values = language_row.find_all('td')
-        #logger.info(f"{language_values=}")
 
-        language = Language(
-            administrative_language_alpha_2_code= none_if(language_values[0].get_text(),''),
-            administrative_language_alpha_3_code= none_if(language_values[1].get_text(),''),
-            local_short_name= none_if(language_values[2].get_text(),'')
+        if len(language_values) < LANGUAGE_COLUMN_COUNT:
+            logger.warning(
+                f"[{alpha_2_code}] skipping malformed language row: "
+                f"expected {LANGUAGE_COLUMN_COUNT} columns, got {len(language_values)} "
+                f"({language_row.get_text(strip=True)!r})"
+            )
+            continue
+
+        languages.append(
+            Language(
+                administrative_language_alpha_2_code= none_if(language_values[0].get_text(),''),
+                administrative_language_alpha_3_code= none_if(language_values[1].get_text(),''),
+                local_short_name= none_if(language_values[2].get_text(),'')
+            )
         )
-
-        #logger.info(f"{language=}")
-        languages.append(language)
 
     return languages
 
+CHANGE_COLUMN_COUNT = 3
+
 @measure_execution_time
-def parse_country_changes(html: str) -> List[Change]:
-    
+def parse_country_changes(html: str, alpha_2_code: Optional[str] = None) -> List[Change]:
+
     soup = BeautifulSoup(html, "html.parser")
     tables = soup.find_all('table')
     changes: List[Change] = []
 
     # Last table of the country page
     changes_table = tables[-1]
-    #logger.info(f"{changes_table=}")
-
     changes_rows = changes_table.find('tbody').find_all('tr')
-    
+
     for change_row in changes_rows:
         change_values = change_row.find_all('td')
-        #logger.info(f"{change_values=}")
 
-        change = Change(
-            effective_date= none_if(change_values[0].get_text(),''),
-            short_description_en= none_if(change_values[1].get_text(),''),
-            short_description_fr= none_if(change_values[2].get_text(),''),
+        if len(change_values) < CHANGE_COLUMN_COUNT:
+            logger.warning(
+                f"[{alpha_2_code}] skipping malformed change row: "
+                f"expected {CHANGE_COLUMN_COUNT} columns, got {len(change_values)} "
+                f"({change_row.get_text(strip=True)!r})"
+            )
+            continue
+
+        changes.append(
+            Change(
+                effective_date= none_if(change_values[0].get_text(),''),
+                short_description_en= none_if(change_values[1].get_text(),''),
+                short_description_fr= none_if(change_values[2].get_text(),''),
+            )
         )
-
-        #logger.info(f"{change=}")
-        changes.append(change)
 
     return changes
 
@@ -245,16 +254,15 @@ def parse_country(html: str, language :str ='en') -> Country:
 
     if language not in ['en', 'fr']:
         raise Exception('Unexpected language')
-    
-    summary: Dict[str, str] = parse_country_summary(html, language)
-    languages: List[Language] = parse_country_languages(html)
-    subdivisions: List[Subdivision] = parse_country_subdivisions(html)
-    changes: List[Change] = parse_country_changes(html)
 
-    logger.info(f"{summary=}")
-    logger.info(f"{languages=}")
-    logger.info(f"{subdivisions=}")
-    logger.info(f"{changes=}")
+    alpha_2_code = extract_alpha_2_code(html)
+
+    summary: Dict[str, str] = parse_country_summary(html, language, alpha_2_code)
+    languages: List[Language] = parse_country_languages(html, alpha_2_code)
+    subdivisions: List[Subdivision] = parse_country_subdivisions(html, alpha_2_code)
+    changes: List[Change] = parse_country_changes(html, alpha_2_code)
+
+    logger.debug(f"[{alpha_2_code}] {summary=} {languages=} {subdivisions=} {changes=}")
 
     country = Country(
         alpha_2_code= summary.get('alpha_2_code'),
@@ -276,7 +284,10 @@ def parse_country(html: str, language :str ='en') -> Country:
         subdivisions= subdivisions,
         changes= changes
     )
-    
-    logger.info(f"{country=}")
-    
+
+    logger.info(
+        f"[{alpha_2_code}] parsed country: {len(languages)} languages, "
+        f"{len(subdivisions)} subdivisions, {len(changes)} changes"
+    )
+
     return country

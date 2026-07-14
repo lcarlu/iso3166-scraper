@@ -159,7 +159,7 @@ def get_country_html_with_retries(url: str, expected_alpha_2_code: str, retries:
             return get_country_html(driver, url, expected_alpha_2_code)
         except (TimeoutException, WebDriverException) as e:
             last_error = e
-            logger.warning(f"attempt {attempt}/{retries} failed for {url=}: {e}")
+            logger.warning(f"[{expected_alpha_2_code}] attempt {attempt}/{retries} failed for {url=}: {e}")
             time.sleep(2 * attempt)
         finally:
             driver.quit()
@@ -183,17 +183,19 @@ def fetch_country_html(
     if page_id is None:
         return None
 
-    file_name = f"{code_element.alpha_2_code}.html"
+    alpha_2_code = code_element.alpha_2_code
+    file_name = f"{alpha_2_code}.html"
     file_path = downloaded_files_dir / file_name
 
     if download and file_path.exists():
-        logger.info(f"{file_path} already downloaded, skipping fetch")
+        logger.info(f"[{alpha_2_code}] already downloaded, skipping fetch")
         return file_path.read_text(encoding="utf-8")
 
     url: str = f"{base_url}{page_id}"
-    logger.debug(f"{url=}")
+    logger.debug(f"[{alpha_2_code}] fetching {url=}")
 
-    html: str = get_country_html_with_retries(url, code_element.alpha_2_code, retries)
+    html: str = get_country_html_with_retries(url, alpha_2_code, retries)
+    logger.info(f"[{alpha_2_code}] fetched")
 
     if download:
         save_file(file_path, html)
@@ -223,8 +225,8 @@ def get_all_countries_html(
                 html = future.result()
                 if html is not None:
                     countries_html.append(html)
-            except Exception as e:
-                logger.error(f"giving up on {code_element.alpha_2_code} after retries: {e}")
+            except Exception:
+                logger.exception(f"[{code_element.alpha_2_code}] giving up after retries")
 
     return countries_html
 
@@ -243,13 +245,11 @@ def get_all_countries_languages(countries: List[Country]) -> List[Dict[str, Any]
 def generate_csv(input: List[Dict[str, str]], file_path: Path, expected_columns: List[str]) -> None:
 
     df = pd.DataFrame.from_dict(input, dtype=str)
-    logger.info(df.head(10))
-    logger.info(df.shape)
-    logger.info(f'{expected_columns=}')
     df = df[expected_columns]
 
     file_path.parent.mkdir(exist_ok=True, parents=True)
     df.to_csv(file_path, sep='|', index=False, encoding='utf-8')
+    logger.info(f"wrote {len(df)} rows to {file_path}")
 
 @measure_execution_time
 def main() -> None:
@@ -278,13 +278,15 @@ def main() -> None:
 
         # Parse the decoding table
         code_elements_statuses: List[CodeElementStatus] = parse_code_elements_statuses(country_codes_collection_html)
-        logger.info(f"{code_elements_statuses=}")
+        logger.debug(f"{code_elements_statuses=}")
 
         # Parse the country codes collection
         country_codes_collection: List[CodeElement] = parse_country_codes_collection(country_codes_collection_html, code_elements_statuses)
-        logger.info(f"{country_codes_collection[:10]=}")
+        logger.info(f"{len(country_codes_collection)} country codes found")
+        logger.debug(f"{country_codes_collection=}")
 
         countries: List[Country] = []
+        failed_countries: List[str] = []
 
         # Change only the base url for the countries pages
         # The main page is not translated
@@ -301,16 +303,23 @@ def main() -> None:
         )
 
         for html in countries_html:
-            country = parse_country(html, arguments.language)
-            countries.append(country)
+            alpha_2_code = extract_alpha_2_code(html) or "UNKNOWN"
+            try:
+                countries.append(parse_country(html, arguments.language))
+            except Exception:
+                failed_countries.append(alpha_2_code)
+                logger.exception(f"[{alpha_2_code}] failed to parse country page, skipping")
 
-        logger.info(f"{countries=}")
+        if failed_countries:
+            logger.warning(f"failed to parse {len(failed_countries)} countries: {failed_countries}")
+
+        logger.info(f"parsed {len(countries)}/{len(countries_html)} countries")
+        logger.debug(f"{countries=}")
 
         countries_subdivisions = get_all_countries_subdivisions(countries)
-        logger.info(f"{countries_subdivisions=}")
-
         countries_languages = get_all_countries_languages(countries)
-        logger.info(f"{countries_languages=}")
+        logger.debug(f"{countries_subdivisions=}")
+        logger.debug(f"{countries_languages=}")
 
         # Generate csv files
 
@@ -343,8 +352,9 @@ def main() -> None:
             LANGUAGES_EXPECTED_COLUMNS
         )
 
-    except Exception as e:
-        raise e
+    except Exception:
+        logger.exception("scraping run failed")
+        raise
 
 if __name__ == '__main__':
     main()
