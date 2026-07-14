@@ -7,7 +7,7 @@ The aim is to obtain the equivalent of the “country-codes.csv” file
 ```
 uv sync
 
-uv run iso3166_scraper/src/main.py
+uv run iso3166-scraper
 ```
 
 Produce 4 files in an data/YYYYMMDD/ directory

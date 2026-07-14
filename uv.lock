@@ -232,7 +232,7 @@ wheels = [
 [[package]]
 name = "iso3166-scraper"
 version = "0.0.1"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "pandas" },
