@@ -1,60 +1,60 @@
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 @dataclass
 class CodeElementStatus:
-    class_name: str
-    text: str
+    class_name: Optional[str] = None
+    text: Optional[str] = None
 
 @dataclass
 class CodeElement:
-    alpha_2_code: str
-    short_name_lower_case: str
-    status: str
-    page_id: str
+    alpha_2_code: Optional[str] = None
+    short_name_lower_case: Optional[str] = None
+    status: Optional[str] = None
+    page_id: Optional[str] = None
 
 @dataclass
 class Language:
-    administrative_language_alpha_2_code: str
-    administrative_language_alpha_3_code: str
-    local_short_name: str
+    administrative_language_alpha_2_code: Optional[str] = None
+    administrative_language_alpha_3_code: Optional[str] = None
+    local_short_name: Optional[str] = None
 
 @dataclass
 class Subdivision:
-    subdivision_category: str
-    subdivision_code: str
-    subdivision_name: str
-    local_variant: str
-    language_code: str
-    romanization_system: str
-    parent_subdivision_code: str
+    subdivision_category: Optional[str] = None
+    subdivision_code: Optional[str] = None
+    subdivision_name: Optional[str] = None
+    local_variant: Optional[str] = None
+    language_code: Optional[str] = None
+    romanization_system: Optional[str] = None
+    parent_subdivision_code: Optional[str] = None
 
 @dataclass
 class Change:
-    effective_date: str
-    short_description_en: str
-    short_description_fr: str
+    effective_date: Optional[str] = None
+    short_description_en: Optional[str] = None
+    short_description_fr: Optional[str] = None
 
 @dataclass
 class Country:
-    alpha_2_code: str
-    alpha_3_code: str
-    alpha_4_code: str
-    numeric_code: str
-    short_name: str
-    short_name_lower_case: str
-    full_name: str
-    independent: str
-    territory_name: str
-    status: str
-    status_remark: str
-    remarks: str
-    remark_part_1: str
-    remark_part_2: str
-    remark_part_3: str
-    languages: List[Language] = None
-    subdivisions: List[Subdivision] = None
-    changes: List[Change] = None
+    alpha_2_code: Optional[str] = None
+    alpha_3_code: Optional[str] = None
+    alpha_4_code: Optional[str] = None
+    numeric_code: Optional[str] = None
+    short_name: Optional[str] = None
+    short_name_lower_case: Optional[str] = None
+    full_name: Optional[str] = None
+    independent: Optional[str] = None
+    territory_name: Optional[str] = None
+    status: Optional[str] = None
+    status_remark: Optional[str] = None
+    remarks: Optional[str] = None
+    remark_part_1: Optional[str] = None
+    remark_part_2: Optional[str] = None
+    remark_part_3: Optional[str] = None
+    languages: Optional[List[Language]] = None
+    subdivisions: Optional[List[Subdivision]] = None
+    changes: Optional[List[Change]] = None
 
     def get_subdivisions(self) -> List[Dict[str, Any]]:
         return [
@@ -75,4 +75,6 @@ class Country:
             }
             for language in self.languages
         ]
+
+
 

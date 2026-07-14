@@ -1,19 +1,19 @@
 from bs4 import BeautifulSoup
-from classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, Language
 from typing import List, Dict
 from dataclasses import asdict
-from utils import measure_execution_time, none_if, to_snake_case
 import re
 from pathlib import Path
 import pandas as pd
-from config.logger import get_logger
+from src.utils import measure_execution_time, none_if, to_snake_case
+from src.classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, Language
+from src.config.logger import get_logger
 
 logger = get_logger(__name__)
 
 @measure_execution_time
 def parse_code_elements_statuses(html :str) -> List[CodeElementStatus]:
 
-    code_elements_statuses = []
+    code_elements_statuses: list[CodeElementStatus] = []
     soup = BeautifulSoup(html, "html.parser")
 
     """

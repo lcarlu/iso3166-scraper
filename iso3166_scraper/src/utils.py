@@ -1,9 +1,12 @@
 import time
 import logging
+import json
 from unidecode import unidecode
 import re
 from pathlib import Path
-from config.logger import get_logger
+from dataclasses import asdict
+from src.config.logger import get_logger
+from src.classes import Country
 
 logger = get_logger(__name__)
 
@@ -51,5 +54,14 @@ def save_file(file_path: Path, content: str) -> None:
 
     with open(file_path, "w") as file:
         file.write(content)
+
+    logger.info(f"{file_path} saved")
+
+def save_country_json(country: Country, file_path: Path) -> None:
+
+    file_path.parent.mkdir(exist_ok=True, parents=True)
+
+    with open(file_path, "w", encoding="utf-8") as file:
+        json.dump(asdict(country), file, ensure_ascii=False, indent=2)
 
     logger.info(f"{file_path} saved")

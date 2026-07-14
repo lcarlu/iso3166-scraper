@@ -1,33 +1,49 @@
-
+from seleniumbase.core.sb_driver import DriverMethods
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException
+from selenium.common.exceptions import WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+
 from seleniumbase import Driver
 import pandas as pd
 from datetime import date
 from pathlib import Path
-from utils import measure_execution_time, save_file
+from typing import List, Dict, Any, Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
-from classes import Country, CodeElement, CodeElementStatus
-from typing import List, Dict, Any
-from parser import parse_code_elements_statuses, parse_country_codes_collection, parse_country
-from config.logger import get_logger
 import argparse
 import itertools
+import time
+
+from src.utils import measure_execution_time, save_file
+from src.classes import Country, CodeElement, CodeElementStatus
+from src.parser import parse_code_elements_statuses, parse_country_codes_collection, parse_country
+from src.config.logger import get_logger
+
+logger = get_logger(__name__)
 
 def get_arguments():
 
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--language", type=str, default='en', choices=['en', 'fr'], help="choose the language for the content of all files. Choice between fr and en (default = en)")
     parser.add_argument("--download", action="store_true", help="Download all html file before parsing")
+    parser.add_argument("--workers", type=int, default=3, help="number of parallel browser workers used to download country pages (default = 3)")
+    parser.add_argument("--retries", type=int, default=3, help="number of attempts per country page before giving up (default = 3)")
 
     return parser.parse_args()
 
+def get_uc_driver():
+    return Driver(uc=True, headless=True)
 
-logger = get_logger(__name__)
+COUNTRY_CODES_COLLECTION_EXCEPTED_COLUMNS: list[str] = [
+    "alpha_2_code",
+    "short_name_lower_case",
+    "status",
+    "page_id"
+]
 
-COUNTRIES_EXPECTED_COLUMNS = [
+COUNTRIES_EXPECTED_COLUMNS: list[str] = [
     "alpha_2_code",
     "alpha_3_code",
     "alpha_4_code",
@@ -45,14 +61,7 @@ COUNTRIES_EXPECTED_COLUMNS = [
     "remark_part_3"
     ]
 
-COUNTRY_CODES_COLLECTION_EXCEPTED_COLUMNS = [
-    "alpha_2_code",
-    "short_name_lower_case",
-    "status",
-    "page_id"
-]
-
-SUBDIVISIONS_EXCEPTED_COLUMNS = [
+SUBDIVISIONS_EXCEPTED_COLUMNS: list[str] = [
     "alpha_2_code",
     "alpha_3_code",
     "numeric_code",
@@ -65,7 +74,7 @@ SUBDIVISIONS_EXCEPTED_COLUMNS = [
     "parent_subdivision_code"
 ]
 
-LANGUAGES_EXPECTED_COLUMNS = [
+LANGUAGES_EXPECTED_COLUMNS: list[str] = [
     "alpha_2_code",
     "alpha_3_code",
     "numeric_code",
@@ -93,11 +102,8 @@ def get_country_codes_collection_html(driver, url: str) -> str:
         # Cookie banner did not appear (e.g. already accepted) - safe to continue
         logger.debug("No cookie banner found within timeout, continuing")
 
-    # take a screenshot of the current page and save it
-    #driver.save_screenshot("cloudflare-challenge2.png")
-
     # wait for the element to load
-    wait = WebDriverWait(driver, timeout=10)
+    wait: WebDriverWait = WebDriverWait(driver, timeout=10)
     wait.until(EC.presence_of_element_located((By.CLASS_NAME, "grs-grid")))
 
     # Get the html from the page
@@ -108,9 +114,111 @@ def get_country_html(driver, url: str) -> str:
     driver.get(url)
     driver.refresh() # refresh the driver in order to change correctly the page source
     logger.debug(f"{driver.current_url=}")
-    wait = WebDriverWait(driver, timeout=20)
+    wait: WebDriverWait = WebDriverWait(driver, timeout=20)
     wait.until(EC.presence_of_element_located((By.CLASS_NAME, "core-view-summary")))
     return driver.page_source
+
+def fetch_country_codes_collection_html(url: str, downloaded_files_dir: Path, download: bool) -> str:
+    """
+    Resolve the country codes collection page, reusing a previously
+    downloaded file (checkpoint) when present so a crashed/retried run
+    does not re-fetch it.
+    """
+    file_path: Path = downloaded_files_dir / "country_codes_collection.html"
+
+    if download and file_path.exists():
+        logger.info(f"{file_path} already downloaded, skipping fetch")
+        return file_path.read_text(encoding="utf-8")
+
+    driver: DriverMethods = get_uc_driver()
+    try:
+        html: str = get_country_codes_collection_html(driver, url)
+    finally:
+        driver.quit()
+
+    if download:
+        save_file(file_path, html)
+
+    return html
+
+def get_country_html_with_retries(driver, url: str, retries: int) -> str:
+
+    last_error = WebDriverException(f"no attempt made for {url=}, retries={retries}")
+
+    for attempt in range(1, retries + 1):
+        try:
+            return get_country_html(driver, url)
+        except (TimeoutException, WebDriverException) as e:
+            last_error = e
+            logger.warning(f"attempt {attempt}/{retries} failed for {url=}: {e}")
+            time.sleep(2 * attempt)
+
+    raise last_error
+
+def fetch_country_html(
+    code_element: CodeElement,
+    base_url: str,
+    downloaded_files_dir: Path,
+    download: bool,
+    retries: int
+) -> Optional[str]:
+    """
+    Resolve a single country's HTML, reusing a previously downloaded file
+    (checkpoint) when present so a crashed/retried run does not re-fetch it.
+    Creates and disposes its own driver so it can be called from worker threads.
+    """
+    page_id = code_element.page_id
+    if page_id is None:
+        return None
+
+    file_name = f"{code_element.alpha_2_code}.html"
+    file_path = downloaded_files_dir / file_name
+
+    if download and file_path.exists():
+        logger.info(f"{file_path} already downloaded, skipping fetch")
+        return file_path.read_text(encoding="utf-8")
+
+    url: str = f"{base_url}{page_id}"
+    logger.debug(f"{url=}")
+
+    driver = get_uc_driver()
+    try:
+        html: str = get_country_html_with_retries(driver, url, retries)
+    finally:
+        driver.quit()
+
+    if download:
+        save_file(file_path, html)
+
+    return html
+
+def get_all_countries_html(
+    country_codes_collection: List[CodeElement],
+    base_url: str,
+    downloaded_files_dir: Path,
+    download: bool,
+    workers: int,
+    retries: int
+) -> List[str]:
+
+    countries_html: List[str] = []
+
+    with ThreadPoolExecutor(max_workers=workers) as executor:
+        futures = {
+            executor.submit(fetch_country_html, code_element, base_url, downloaded_files_dir, download, retries): code_element
+            for code_element in country_codes_collection
+        }
+
+        for future in as_completed(futures):
+            code_element = futures[future]
+            try:
+                html = future.result()
+                if html is not None:
+                    countries_html.append(html)
+            except Exception as e:
+                logger.error(f"giving up on {code_element.alpha_2_code} after retries: {e}")
+
+    return countries_html
 
 def get_all_countries_subdivisions(countries: List[Country]) -> List[Dict[str, Any]]:
     subdivisions = [country.get_subdivisions() for country in countries]
@@ -153,14 +261,12 @@ def main() -> None:
     downloaded_files_dir: Path = DATA_DIR / formatted_start_date / "downloaded_files" / arguments.language
     output_files_dir: Path = DATA_DIR / formatted_start_date / "output_files" / arguments.language
 
-    driver = Driver(uc=True, headless=True)
-
     try:
-        country_codes_collection_html = get_country_codes_collection_html(driver, country_codes_collection_url)
-
-        # Save html content
-        if arguments.download:
-            save_file(downloaded_files_dir / f"country_codes_collection.html", country_codes_collection_html)
+        country_codes_collection_html = fetch_country_codes_collection_html(
+            country_codes_collection_url,
+            downloaded_files_dir,
+            arguments.download
+        )
 
         # Parse the decoding table
         code_elements_statuses: List[CodeElementStatus] = parse_code_elements_statuses(country_codes_collection_html)
@@ -170,7 +276,6 @@ def main() -> None:
         country_codes_collection: List[CodeElement] = parse_country_codes_collection(country_codes_collection_html, code_elements_statuses)
         logger.info(f"{country_codes_collection[:10]=}")
 
-        countries_html: List[str] = []
         countries: List[Country] = []
 
         # Change only the base url for the countries pages
@@ -178,23 +283,14 @@ def main() -> None:
         if arguments.language == "fr":
             BASE_URL: str = f"{BASE_URL}fr/"
 
-        """
-        TODO : Optimize downloading with parallel execution
-        https://stackoverflow.com/questions/42732958/python-parallel-execution-with-selenium
-        """
-
-        for code_element in country_codes_collection:
-            page_id = code_element.page_id
-            file_name = f"{code_element.alpha_2_code}.html"
-
-            if page_id is not None:
-                url: str = f"{BASE_URL}{page_id}"
-                logger.debug(f"{url=}")
-                html: str = get_country_html(driver, url)
-                countries_html.append(html)
-
-                if arguments.download:
-                    save_file(downloaded_files_dir / file_name, html)
+        countries_html: List[str] = get_all_countries_html(
+            country_codes_collection,
+            BASE_URL,
+            downloaded_files_dir,
+            arguments.download,
+            arguments.workers,
+            arguments.retries
+        )
 
         for html in countries_html:
             country = parse_country(html, arguments.language)
@@ -241,10 +337,6 @@ def main() -> None:
 
     except Exception as e:
         raise e
-    
-    finally:
-        # close the browser and end the session
-        driver.quit()
-                
+
 if __name__ == '__main__':
     main()
