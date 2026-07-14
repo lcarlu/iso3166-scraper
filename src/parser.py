@@ -1,9 +1,6 @@
 from bs4 import BeautifulSoup
 from typing import List, Dict
-from dataclasses import asdict
 import re
-from pathlib import Path
-import pandas as pd
 from src.utils import measure_execution_time, none_if, to_snake_case
 from src.classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, Language
 from src.config.logger import get_logger
@@ -263,21 +260,3 @@ def parse_country(html: str, language :str ='en') -> Country:
     logger.info(f"{country=}")
     
     return country
-
-if __name__ == '__main__':
-
-    cwd = Path.cwd()
-    data_dir = cwd / "iso3166_scraper" / "data"
-
-    html_files_path = list(data_dir.glob('*_fr.html'))
-    logger.info(f"{html_files_path=}")
-
-    countries = []
-    for file_path in html_files_path[:2]:
-
-        with open(file_path, 'r') as file:
-            html = file.read()
-            country: Country = parse_country(html, 'fr')
-            countries.append(asdict(country))
-     
-    df = pd.DataFrame(countries).to_csv(data_dir / 'countries.csv', index=False, sep='|')

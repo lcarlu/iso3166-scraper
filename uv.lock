@@ -241,6 +241,11 @@ dependencies = [
     { name = "unidecode" },
 ]
 
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "beautifulsoup4", specifier = ">=4.13.4" },
@@ -249,6 +254,9 @@ requires-dist = [
     { name = "seleniumbase", specifier = ">=4.40.6" },
     { name = "unidecode", specifier = ">=1.4.0" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=9.1.1" }]
 
 [[package]]
 name = "jinja2"

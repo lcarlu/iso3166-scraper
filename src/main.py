@@ -1,3 +1,4 @@
+from email.policy import default
 from seleniumbase.core.sb_driver import DriverMethods
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.common.exceptions import TimeoutException
@@ -27,7 +28,7 @@ def get_arguments():
 
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--language", type=str, default='en', choices=['en', 'fr'], help="choose the language for the content of all files. Choice between fr and en (default = en)")
-    parser.add_argument("--download", action="store_true", help="Download all html file before parsing")
+    parser.add_argument("--download", action="store_true", default=True, help="Download all html file before parsing")
     parser.add_argument("--workers", type=int, default=3, help="number of parallel browser workers used to download country pages (default = 3)")
     parser.add_argument("--retries", type=int, default=3, help="number of attempts per country page before giving up (default = 3)")
 
@@ -248,7 +249,7 @@ def main() -> None:
 
     BASE_URL = "https://www.iso.org/obp/ui/"
     COUNTRY_CODES_COLLECTION_PAGE_ID = "#iso:pub:PUB500001:en"
-    DATA_DIR: Path = Path.cwd() / "iso3166_scraper" / "data"
+    DATA_DIR: Path = Path.cwd() / "data"
     
     # Read input arguments
     arguments = get_arguments()
