@@ -28,7 +28,7 @@ def get_arguments():
 
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--language", type=str, default='en', choices=['en', 'fr'], help="choose the language for the content of all files. Choice between fr and en (default = en)")
-    parser.add_argument("--download", action="store_true", default=True, help="Download all html file before parsing")
+    parser.add_argument("--download", action=argparse.BooleanOptionalAction, default=True, help="Download all html file before parsing (default = True, use --no-download to disable)")
     parser.add_argument("--workers", type=int, default=3, help="number of parallel browser workers used to download country pages (default = 3)")
     parser.add_argument("--retries", type=int, default=3, help="number of attempts per country page before giving up (default = 3)")
 
