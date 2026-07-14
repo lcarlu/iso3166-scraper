@@ -1,3 +1,4 @@
+from bs4.element import Tag, ResultSet
 from bs4 import BeautifulSoup
 from typing import List, Dict, Optional
 import re
@@ -151,13 +152,36 @@ SUBDIVISION_COLUMN_COUNT = 7
 def parse_country_subdivisions(html: str, alpha_2_code: Optional[str] = None) -> List[Subdivision]:
 
     soup = BeautifulSoup(html, "html.parser")
-    tables = soup.find_all('table')
     subdivisions: List[Subdivision] = []
 
-    subdivisions_table = tables[-2]
-    subdivisions_rows = subdivisions_table.find('tbody').find_all('tr')
+    subdivision_category_position = subdivision_code_position = subdivision_name_position = local_variant_position = language_code_position = \
+        romanization_system_position = parent_subdivision_code_position = None
 
-    for subdivision_row in subdivisions_rows:
+    subdivisions_table: Optional[Tag] = soup.find('table', id='subdivision')
+    subdivisions_table_headers: Optional[ResultSet[Tag]] = subdivisions_table.find("thead").find_all("th")
+
+    i = 0
+    for header in subdivisions_table_headers:
+        match header.text:
+            case "Subdivision category" | "Type de subdivision":
+                subdivision_category_position = i
+            case "3166-2 code" | "code ISO 3166-2":
+                subdivision_code_position = i
+            case "Subdivision name" | "Nom de subdivision":
+                subdivision_name_position = i
+            case "Local variant" | "Variante locale":
+                local_variant_position = i
+            case "Language code" | "Code langue":
+                language_code_position = i
+            case "Romanization system" | "Système de romanisation":
+                romanization_system_position = i
+            case "Parent subdivision" | "Subdivision-mère":
+                parent_subdivision_code_position = i
+        i += 1
+
+    subdivisions_table_body_rows = subdivisions_table.find('tbody').find_all("tr")
+    
+    for subdivision_row in subdivisions_table_body_rows:
         subdivision_values = subdivision_row.find_all('td')
 
         if len(subdivision_values) < SUBDIVISION_COLUMN_COUNT:
@@ -170,13 +194,13 @@ def parse_country_subdivisions(html: str, alpha_2_code: Optional[str] = None) ->
 
         subdivisions.append(
             Subdivision(
-                subdivision_category= none_if(subdivision_values[0].get_text(),''),
-                subdivision_code= none_if(subdivision_values[1].get_text(),''),
-                subdivision_name= none_if(subdivision_values[2].get_text(),''),
-                local_variant= none_if(subdivision_values[3].get_text(),''),
-                language_code= none_if(subdivision_values[4].get_text(),''),
-                romanization_system= none_if(subdivision_values[5].get_text(),''),
-                parent_subdivision_code= none_if(subdivision_values[6].get_text(),'')
+                subdivision_category= none_if(subdivision_values[subdivision_category_position].get_text(),''),
+                subdivision_code= none_if(subdivision_values[subdivision_code_position].get_text().replace("*", ""),''),
+                subdivision_name= none_if(subdivision_values[subdivision_name_position].get_text(),''),
+                local_variant= none_if(subdivision_values[local_variant_position].get_text(),''),
+                language_code= none_if(subdivision_values[language_code_position].get_text(),''),
+                romanization_system= none_if(subdivision_values[romanization_system_position].get_text(),''),
+                parent_subdivision_code= none_if(subdivision_values[parent_subdivision_code_position].get_text(),'')
             )
         )
 
