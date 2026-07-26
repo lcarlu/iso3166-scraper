@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from typing import List, Dict, Optional
 import re
 from src.utils import measure_execution_time, none_if
-from src.classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, Language, AdditionalInformation
+from src.classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, AdditionalInformation
 from src.config.logger import get_logger
 
 logger = get_logger(__name__)
@@ -278,39 +278,6 @@ def parse_country_subdivisions(html: str, alpha_2_code: Optional[str] = None) ->
 
     return subdivisions
 
-LANGUAGE_COLUMN_COUNT = 3
-
-@measure_execution_time
-def parse_country_languages(html: str, alpha_2_code: Optional[str] = None) -> List[Language]:
-
-    soup = BeautifulSoup(html, "html.parser")
-    tables = soup.find_all('table')
-    languages: List[Language] = []
-
-    languages_table = tables[-3]
-    languages_rows = languages_table.find('tbody').find_all('tr')
-
-    for language_row in languages_rows:
-        language_values = language_row.find_all('td')
-
-        if len(language_values) < LANGUAGE_COLUMN_COUNT:
-            logger.warning(
-                f"[{alpha_2_code}] skipping malformed language row: "
-                f"expected {LANGUAGE_COLUMN_COUNT} columns, got {len(language_values)} "
-                f"({language_row.get_text(strip=True)!r})"
-            )
-            continue
-
-        languages.append(
-            Language(
-                administrative_language_alpha_2_code= none_if(language_values[0].get_text(),''),
-                administrative_language_alpha_3_code= none_if(language_values[1].get_text(),''),
-                local_short_name= none_if(language_values[2].get_text(),'')
-            )
-        )
-
-    return languages
-
 CHANGE_COLUMN_COUNT = 3
 
 @measure_execution_time
@@ -354,12 +321,11 @@ def parse_country(html: str, language :str ='en') -> Country:
     alpha_2_code = extract_alpha_2_code(html)
 
     summary: Dict[str, str] = parse_country_summary(html, language, alpha_2_code)
-    languages: List[Language] = parse_country_languages(html, alpha_2_code)
     subdivisions: List[Subdivision] = parse_country_subdivisions(html, alpha_2_code)
     changes: List[Change] = parse_country_changes(html, alpha_2_code)
     additional_information: List[AdditionalInformation] = parse_country_additional_information(html, alpha_2_code)
 
-    logger.debug(f"[{alpha_2_code}] {summary=} {languages=} {subdivisions=} {changes=} {additional_information=}")
+    logger.debug(f"[{alpha_2_code}] {summary=} {subdivisions=} {changes=} {additional_information=}")
 
     country = Country(
         alpha_2_code= summary.get('alpha_2_code'),
@@ -377,15 +343,14 @@ def parse_country(html: str, language :str ='en') -> Country:
         remark_part_1= summary.get('remark_part_1'),
         remark_part_2= summary.get('remark_part_2'),
         remark_part_3= summary.get('remark_part_3'),
-        languages= languages,
         subdivisions= subdivisions,
         changes= changes,
         additional_information= additional_information
     )
 
     logger.info(
-        f"[{alpha_2_code}] parsed country: {len(languages)} languages, "
-        f"{len(subdivisions)} subdivisions, {len(changes)} changes, {len(additional_information)} additional information"
+        f"[{alpha_2_code}] parsed country: {len(subdivisions)} subdivisions, "
+        f"{len(changes)} changes, {len(additional_information)} additional information"
     )
 
     return country

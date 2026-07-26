@@ -14,12 +14,6 @@ class CodeElement:
     page_id: Optional[str] = None
 
 @dataclass
-class Language:
-    administrative_language_alpha_2_code: Optional[str] = None
-    administrative_language_alpha_3_code: Optional[str] = None
-    local_short_name: Optional[str] = None
-
-@dataclass
 class AdditionalInformation:
     administrative_language_alpha_2_code: Optional[str] = None
     administrative_language_alpha_3_code: Optional[str] = None
@@ -58,7 +52,6 @@ class Country:
     remark_part_1: Optional[str] = None
     remark_part_2: Optional[str] = None
     remark_part_3: Optional[str] = None
-    languages: Optional[List[Language]] = None
     subdivisions: Optional[List[Subdivision]] = None
     changes: Optional[List[Change]] = None
     additional_information: Optional[List[AdditionalInformation]] = None
@@ -71,16 +64,6 @@ class Country:
                 'numeric_code': self.numeric_code
             }
             for subdivision in self.subdivisions
-        ]
-
-    def get_languages(self) -> List[Dict[str, Any]]:
-        return [
-            asdict(language) | {
-                'alpha_2_code': self.alpha_2_code,
-                'alpha_3_code': self.alpha_3_code,
-                'numeric_code': self.numeric_code
-            }
-            for language in self.languages
         ]
 
     def get_additional_information(self) -> List[Dict[str, Any]]:

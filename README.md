@@ -15,7 +15,7 @@ Produce 4 files in an data/YYYYMMDD/ directory
 - countries.csv
 - country-codes-collection.csv
 - subdivisions.csv
-- languages.csv
+- additional_information.csv
 
 ### Output of this script 
 
@@ -63,7 +63,7 @@ Produce 4 files in an data/YYYYMMDD/ directory
 |romanization_system|
 |parent_subdivision_code|
 
-**languages.csv**
+**additional_information.csv**
 
 | Field name |
 |:-|

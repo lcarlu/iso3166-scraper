@@ -32,7 +32,7 @@ def test_parse_country_nested_collections():
     html = (FIXTURES_DIR / "country_page_ad.html").read_text()
     country = parse_country(html, "en")
 
-    assert len(country.languages) == 1
+    assert len(country.additional_information) == 1
     assert len(country.subdivisions) == 7
     assert len(country.changes) == 2
 
