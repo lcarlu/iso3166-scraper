@@ -1,25 +1,29 @@
-from seleniumbase.core.sb_driver import DriverMethods
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.common.exceptions import TimeoutException
-from selenium.common.exceptions import WebDriverException
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support import expected_conditions as EC
-
-from seleniumbase import Driver
-import pandas as pd
-from datetime import date
-from pathlib import Path
-from typing import List, Dict, Any, Optional
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import asdict
 import argparse
 import itertools
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import asdict
+from datetime import date
+from pathlib import Path
+from typing import Any
 
-from src.utils import measure_execution_time, save_file
-from src.classes import Country, CodeElement, CodeElementStatus
-from src.parser import parse_code_elements_statuses, parse_country_codes_collection, parse_country, extract_page_code
+import pandas as pd
+from selenium.common.exceptions import TimeoutException, WebDriverException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+from seleniumbase import Driver
+from seleniumbase.core.sb_driver import DriverMethods
+
+from src.classes import CodeElement, CodeElementStatus, Country
 from src.config.logger import get_logger
+from src.parser import (
+    extract_page_code,
+    parse_code_elements_statuses,
+    parse_country,
+    parse_country_codes_collection,
+)
+from src.utils import measure_execution_time, save_file
 
 logger = get_logger(__name__)
 
@@ -173,7 +177,7 @@ def fetch_country_html(
     downloaded_files_dir: Path,
     download: bool,
     retries: int
-) -> Optional[str]:
+) -> str | None:
     """
     Resolve a single country's HTML, reusing a previously downloaded file
     (checkpoint) when present so a crashed/retried run does not re-fetch it.
@@ -212,15 +216,15 @@ def fetch_country_html(
     return html
 
 def get_all_countries_html(
-    country_codes_collection: List[CodeElement],
+    country_codes_collection: list[CodeElement],
     base_url: str,
     downloaded_files_dir: Path,
     download: bool,
     workers: int,
     retries: int
-) -> List[str]:
+) -> list[str]:
 
-    countries_html: List[str] = []
+    countries_html: list[str] = []
 
     with ThreadPoolExecutor(max_workers=workers) as executor:
         futures = {
@@ -239,19 +243,19 @@ def get_all_countries_html(
 
     return countries_html
 
-def get_all_countries_subdivisions(countries: List[Country]) -> List[Dict[str, Any]]:
+def get_all_countries_subdivisions(countries: list[Country]) -> list[dict[str, Any]]:
     subdivisions = [country.get_subdivisions() for country in countries]
     flattened_subdivisions = list(itertools.chain(*subdivisions))
 
     return flattened_subdivisions
 
-def get_all_countries_additional_information(countries: List[Country]) -> List[Dict[str, Any]]:
+def get_all_countries_additional_information(countries: list[Country]) -> list[dict[str, Any]]:
     additional_information = [country.get_additional_information() for country in countries]
     flattened_additional_information = list(itertools.chain(*additional_information))
     return flattened_additional_information
 
 
-def generate_csv(input: List[Dict[str, str]], file_path: Path, expected_columns: List[str]) -> None:
+def generate_csv(input: list[dict[str, str]], file_path: Path, expected_columns: list[str]) -> None:
 
     df = pd.DataFrame.from_dict(input, dtype=str)
     df = df[expected_columns]
@@ -286,23 +290,23 @@ def main() -> None:
         )
 
         # Parse the decoding table
-        code_elements_statuses: List[CodeElementStatus] = parse_code_elements_statuses(country_codes_collection_html)
+        code_elements_statuses: list[CodeElementStatus] = parse_code_elements_statuses(country_codes_collection_html)
         logger.debug(f"{code_elements_statuses=}")
 
         # Parse the country codes collection
-        country_codes_collection: List[CodeElement] = parse_country_codes_collection(country_codes_collection_html, code_elements_statuses)
+        country_codes_collection: list[CodeElement] = parse_country_codes_collection(country_codes_collection_html, code_elements_statuses)
         logger.info(f"{len(country_codes_collection)} country codes found")
         logger.debug(f"{country_codes_collection=}")
 
-        countries: List[Country] = []
-        failed_countries: List[str] = []
+        countries: list[Country] = []
+        failed_countries: list[str] = []
 
         # Change only the base url for the countries pages
         # The main page is not translated
         if arguments.language == "fr":
             BASE_URL: str = f"{BASE_URL}fr/"
 
-        countries_html: List[str] = get_all_countries_html(
+        countries_html: list[str] = get_all_countries_html(
             country_codes_collection,
             BASE_URL,
             downloaded_files_dir,

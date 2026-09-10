@@ -3,13 +3,13 @@ from pathlib import Path
 import pytest
 
 from src.parser import (
-    parse_country,
-    parse_country_codes_collection,
+    extract_page_code,
     parse_code_elements_statuses,
-    parse_country_subdivisions,
+    parse_country,
     parse_country_additional_information,
     parse_country_changes,
-    extract_page_code,
+    parse_country_codes_collection,
+    parse_country_subdivisions,
 )
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"

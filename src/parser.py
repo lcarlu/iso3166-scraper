@@ -1,15 +1,23 @@
-from bs4.element import Tag, ResultSet
-from bs4 import BeautifulSoup
-from typing import List, Dict, Optional
 import re
-from src.utils import measure_execution_time, none_if
-from src.classes import Country, CodeElement, CodeElementStatus, Subdivision, Change, AdditionalInformation
+
+from bs4 import BeautifulSoup
+from bs4.element import ResultSet, Tag
+
+from src.classes import (
+    AdditionalInformation,
+    Change,
+    CodeElement,
+    CodeElementStatus,
+    Country,
+    Subdivision,
+)
 from src.config.logger import get_logger
+from src.utils import measure_execution_time, none_if
 
 logger = get_logger(__name__)
 
 @measure_execution_time
-def parse_code_elements_statuses(html :str) -> List[CodeElementStatus]:
+def parse_code_elements_statuses(html :str) -> list[CodeElementStatus]:
 
     code_elements_statuses: list[CodeElementStatus] = []
     soup = BeautifulSoup(html, "html.parser")
@@ -39,9 +47,9 @@ def parse_code_elements_statuses(html :str) -> List[CodeElementStatus]:
     return code_elements_statuses
 
 @measure_execution_time
-def parse_country_codes_collection(html :str, code_elements_statuses :List[CodeElementStatus]) -> List[CodeElement]:
+def parse_country_codes_collection(html :str, code_elements_statuses :list[CodeElementStatus]) -> list[CodeElement]:
 
-    country_codes_collection :List[CodeElement] = []
+    country_codes_collection :list[CodeElement] = []
     soup = BeautifulSoup(html, "html.parser")
 
     grs_grid_table_data = soup.find('table', class_ = 'grs-grid').find_all('td', class_ = re.compile("grs-status[0-9]"))
@@ -78,7 +86,7 @@ def parse_country_codes_collection(html :str, code_elements_statuses :List[CodeE
 
     return country_codes_collection
 
-def extract_page_code(html: str) -> Optional[str]:
+def extract_page_code(html: str) -> str | None:
     """
     Lightweight, language-agnostic extraction of the summary table's first
     field. For current countries this is the alpha-2 code, but withdrawn
@@ -101,13 +109,13 @@ def extract_page_code(html: str) -> Optional[str]:
     return None if value_div is None else value_div.get_text().strip().upper()
 
 @measure_execution_time
-def parse_country_summary(html :str, language :str ='en', alpha_2_code: Optional[str] = None) -> Dict[str, str]:
+def parse_country_summary(html :str, language :str ='en', alpha_2_code: str | None = None) -> dict[str, str]:
 
     if language not in ['en', 'fr']:
-        raise Exception('Unexpected language')
+        raise ValueError('Unexpected language')
 
     soup = BeautifulSoup(html, "html.parser")
-    summary: dict[str, Optional[str]] = {}
+    summary: dict[str, str | None] = {}
 
     alpha_2_code = short_name = short_name_lower_case = full_name = alpha_3_code = numeric_code = remarks = \
             independent = territory_name = status = status_remark = remark_part_1 = remark_part_2 = \
@@ -156,7 +164,7 @@ def parse_country_summary(html :str, language :str ='en', alpha_2_code: Optional
                     case "Alpha-4 code" | "Code alpha-4":
                         alpha_4_code = none_if(field_value, '')
 
-        summary: dict[str, Optional[str]]  = {
+        summary: dict[str, str | None]  = {
             "alpha_2_code": alpha_2_code,
             "short_name": short_name,
             "short_name_lower_case": short_name_lower_case,
@@ -174,22 +182,21 @@ def parse_country_summary(html :str, language :str ='en', alpha_2_code: Optional
             "alpha_4_code": alpha_4_code
         }
 
-    except Exception as e:
-        logger.error(f"[{alpha_2_code}] failed to parse country summary: {e}", exc_info=True)
+    except Exception:
+        logger.exception(f"[{alpha_2_code}] failed to parse country summary")
 
     return summary
 
 ADDITIONAL_INFORMATION_COLUMN_COUNT = 3
 
-def parse_country_additional_information(html: str, alpha_2_code: Optional[str] = None) -> list[AdditionalInformation]:
+def parse_country_additional_information(html: str, alpha_2_code: str | None = None) -> list[AdditionalInformation]:
     administrative_language_alpha_2_position = administrative_language_alpha_3_position = local_short_name_position = None
 
     soup = BeautifulSoup(html, "html.parser")
-    additional_information_table: Optional[Tag] = soup.find('div', id='country-additional-info')
+    additional_information_table: Tag | None = soup.find('div', id='country-additional-info')
     additional_information_table_headers: ResultSet[Tag] = additional_information_table.find("thead").find_all("th")
 
-    i = 0
-    for header in additional_information_table_headers:
+    for i, header in enumerate(additional_information_table_headers):
         match header.text:
             case "Administrative language(s) alpha-2" | "Code(s) langue(s) administrative(s) alpha-2":
                 administrative_language_alpha_2_position = i
@@ -197,11 +204,10 @@ def parse_country_additional_information(html: str, alpha_2_code: Optional[str] 
                 administrative_language_alpha_3_position = i
             case "Local short name" | "Forme courte locale":
                 local_short_name_position = i
-        i += 1
 
     additional_information_table_body_rows = additional_information_table.find("tbody").find_all("tr")
 
-    additional_information: List[AdditionalInformation] = []
+    additional_information: list[AdditionalInformation] = []
 
     for row in additional_information_table_body_rows:
         data = row.find_all("td")
@@ -224,19 +230,18 @@ def parse_country_additional_information(html: str, alpha_2_code: Optional[str] 
 SUBDIVISION_COLUMN_COUNT = 7
 
 @measure_execution_time
-def parse_country_subdivisions(html: str, alpha_2_code: Optional[str] = None) -> List[Subdivision]:
+def parse_country_subdivisions(html: str, alpha_2_code: str | None = None) -> list[Subdivision]:
 
     soup = BeautifulSoup(html, "html.parser")
-    subdivisions: List[Subdivision] = []
+    subdivisions: list[Subdivision] = []
 
     subdivision_category_position = subdivision_code_position = subdivision_name_position = local_variant_position = language_code_position = \
         romanization_system_position = parent_subdivision_code_position = None
 
-    subdivisions_table: Optional[Tag] = soup.find('table', id='subdivision')
-    subdivisions_table_headers: Optional[ResultSet[Tag]] = subdivisions_table.find("thead").find_all("th")
+    subdivisions_table: Tag | None = soup.find('table', id='subdivision')
+    subdivisions_table_headers: ResultSet[Tag] | None = subdivisions_table.find("thead").find_all("th")
 
-    i = 0
-    for header in subdivisions_table_headers:
+    for i, header in enumerate(subdivisions_table_headers):
         match header.text:
             case "Subdivision category" | "Type de subdivision":
                 subdivision_category_position = i
@@ -252,7 +257,6 @@ def parse_country_subdivisions(html: str, alpha_2_code: Optional[str] = None) ->
                 romanization_system_position = i
             case "Parent subdivision" | "Subdivision-mère":
                 parent_subdivision_code_position = i
-        i += 1
 
     subdivisions_table_body_rows = subdivisions_table.find('tbody').find_all("tr")
     
@@ -284,10 +288,10 @@ def parse_country_subdivisions(html: str, alpha_2_code: Optional[str] = None) ->
 CHANGE_COLUMN_COUNT = 3
 
 @measure_execution_time
-def parse_country_changes(html: str, alpha_2_code: Optional[str] = None) -> List[Change]:
+def parse_country_changes(html: str, alpha_2_code: str | None = None) -> list[Change]:
 
     soup = BeautifulSoup(html, "html.parser")
-    changes: List[Change] = []
+    changes: list[Change] = []
 
     # The changes table has no id/class of its own to select on, unlike the
     # subdivisions and additional-information tables, so identify it by
@@ -335,14 +339,14 @@ def parse_country_changes(html: str, alpha_2_code: Optional[str] = None) -> List
 def parse_country(html: str, language :str ='en') -> Country:
 
     if language not in ['en', 'fr']:
-        raise Exception('Unexpected language')
+        raise ValueError('Unexpected language')
 
     alpha_2_code = extract_page_code(html)
 
-    summary: Dict[str, str] = parse_country_summary(html, language, alpha_2_code)
-    subdivisions: List[Subdivision] = parse_country_subdivisions(html, alpha_2_code)
-    changes: List[Change] = parse_country_changes(html, alpha_2_code)
-    additional_information: List[AdditionalInformation] = parse_country_additional_information(html, alpha_2_code)
+    summary: dict[str, str] = parse_country_summary(html, language, alpha_2_code)
+    subdivisions: list[Subdivision] = parse_country_subdivisions(html, alpha_2_code)
+    changes: list[Change] = parse_country_changes(html, alpha_2_code)
+    additional_information: list[AdditionalInformation] = parse_country_additional_information(html, alpha_2_code)
 
     logger.debug(f"[{alpha_2_code}] {summary=} {subdivisions=} {changes=} {additional_information=}")
 

@@ -1,62 +1,63 @@
-from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Optional
+from dataclasses import asdict, dataclass
+from typing import Any
+
 
 @dataclass
 class CodeElementStatus:
-    class_name: Optional[str] = None
-    text: Optional[str] = None
+    class_name: str | None = None
+    text: str | None = None
 
 @dataclass
 class CodeElement:
-    alpha_2_code: Optional[str] = None
-    short_name_lower_case: Optional[str] = None
-    status: Optional[str] = None
-    page_id: Optional[str] = None
+    alpha_2_code: str | None = None
+    short_name_lower_case: str | None = None
+    status: str | None = None
+    page_id: str | None = None
 
 @dataclass
 class AdditionalInformation:
-    administrative_language_alpha_2_code: Optional[str] = None
-    administrative_language_alpha_3_code: Optional[str] = None
-    local_short_name: Optional[str] = None
+    administrative_language_alpha_2_code: str | None = None
+    administrative_language_alpha_3_code: str | None = None
+    local_short_name: str | None = None
 
 @dataclass
 class Subdivision:
-    subdivision_category: Optional[str] = None
-    subdivision_code: Optional[str] = None
-    subdivision_name: Optional[str] = None
-    local_variant: Optional[str] = None
-    language_code: Optional[str] = None
-    romanization_system: Optional[str] = None
-    parent_subdivision_code: Optional[str] = None
+    subdivision_category: str | None = None
+    subdivision_code: str | None = None
+    subdivision_name: str | None = None
+    local_variant: str | None = None
+    language_code: str | None = None
+    romanization_system: str | None = None
+    parent_subdivision_code: str | None = None
 
 @dataclass
 class Change:
-    effective_date: Optional[str] = None
-    short_description_en: Optional[str] = None
-    short_description_fr: Optional[str] = None
+    effective_date: str | None = None
+    short_description_en: str | None = None
+    short_description_fr: str | None = None
 
 @dataclass
 class Country:
-    alpha_2_code: Optional[str] = None
-    alpha_3_code: Optional[str] = None
-    alpha_4_code: Optional[str] = None
-    numeric_code: Optional[str] = None
-    short_name: Optional[str] = None
-    short_name_lower_case: Optional[str] = None
-    full_name: Optional[str] = None
-    independent: Optional[str] = None
-    territory_name: Optional[str] = None
-    status: Optional[str] = None
-    status_remark: Optional[str] = None
-    remarks: Optional[str] = None
-    remark_part_1: Optional[str] = None
-    remark_part_2: Optional[str] = None
-    remark_part_3: Optional[str] = None
-    subdivisions: Optional[List[Subdivision]] = None
-    changes: Optional[List[Change]] = None
-    additional_information: Optional[List[AdditionalInformation]] = None
+    alpha_2_code: str | None = None
+    alpha_3_code: str | None = None
+    alpha_4_code: str | None = None
+    numeric_code: str | None = None
+    short_name: str | None = None
+    short_name_lower_case: str | None = None
+    full_name: str | None = None
+    independent: str | None = None
+    territory_name: str | None = None
+    status: str | None = None
+    status_remark: str | None = None
+    remarks: str | None = None
+    remark_part_1: str | None = None
+    remark_part_2: str | None = None
+    remark_part_3: str | None = None
+    subdivisions: list[Subdivision] | None = None
+    changes: list[Change] | None = None
+    additional_information: list[AdditionalInformation] | None = None
 
-    def get_subdivisions(self) -> List[Dict[str, Any]]:
+    def get_subdivisions(self) -> list[dict[str, Any]]:
         return [
             asdict(subdivision) | {
                 'alpha_2_code': self.alpha_2_code,
@@ -66,7 +67,7 @@ class Country:
             for subdivision in self.subdivisions
         ]
 
-    def get_additional_information(self) -> List[Dict[str, Any]]:
+    def get_additional_information(self) -> list[dict[str, Any]]:
         return [
             asdict(additional_information) | {
                 'alpha_2_code': self.alpha_2_code,
