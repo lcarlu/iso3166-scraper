@@ -23,6 +23,8 @@ from src.config.logger import get_logger
 
 logger = get_logger(__name__)
 
+PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
+
 def get_arguments():
 
     parser = argparse.ArgumentParser(description="")
@@ -263,7 +265,7 @@ def main() -> None:
 
     BASE_URL = "https://www.iso.org/obp/ui/"
     COUNTRY_CODES_COLLECTION_PAGE_ID = "#iso:pub:PUB500001:en"
-    DATA_DIR: Path = Path.cwd() / "data"
+    DATA_DIR: Path = PROJECT_ROOT / "data"
     
     # Read input arguments
     arguments = get_arguments()
