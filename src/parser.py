@@ -34,13 +34,13 @@ def parse_code_elements_statuses(html :str) -> list[CodeElementStatus]:
     </tr>
     """
 
-    grs_grid_legend_table_rows = soup.find('table', class_ = 'grs-grid-legend').find_all('tr')
+    grs_grid_legend_table_rows = soup.find('table', class_ = 'grs-grid-legend').find_all('tr')  # ty: ignore[unresolved-attribute]
 
     for table_row in grs_grid_legend_table_rows:
         table_data = table_row.find_all('td')
 
         if len(table_data) == 2:
-            class_name = table_data[0].get('class')[0]
+            class_name = table_data[0].get('class')[0]  # ty: ignore[not-subscriptable]
             text = table_data[1].get_text()
             code_elements_statuses.append(CodeElementStatus(class_name, text))
 
@@ -52,7 +52,7 @@ def parse_country_codes_collection(html :str, code_elements_statuses :list[CodeE
     country_codes_collection :list[CodeElement] = []
     soup = BeautifulSoup(html, "html.parser")
 
-    grs_grid_table_data = soup.find('table', class_ = 'grs-grid').find_all('td', class_ = re.compile("grs-status[0-9]"))
+    grs_grid_table_data = soup.find('table', class_ = 'grs-grid').find_all('td', class_ = re.compile("grs-status[0-9]"))  # ty: ignore[unresolved-attribute]
 
     for td in grs_grid_table_data:
         """
@@ -60,7 +60,7 @@ def parse_country_codes_collection(html :str, code_elements_statuses :list[CodeE
             <a href="#iso:code:3166:US" target="_blank">US</a>
         </td>
         """
-        td_class_name = td.get('class')[0] # status code
+        td_class_name = td.get('class')[0] # status code  # ty: ignore[not-subscriptable]
         td_title = td.get('title') # short_name_lower_case
         td_anchor = td.find('a')
         td_anchor_href = None # page_id
@@ -77,9 +77,9 @@ def parse_country_codes_collection(html :str, code_elements_statuses :list[CodeE
         country_codes_collection.append(
             CodeElement(
                 alpha_2_code = none_if(td_text,''),
-                short_name_lower_case = none_if(td_title.strip(),''),
+                short_name_lower_case = none_if(td_title.strip(),''),  # ty: ignore[unresolved-attribute]
                 status = none_if(td_class,''),
-                page_id = none_if(td_anchor_href,'')
+                page_id = none_if(td_anchor_href,'')  # ty: ignore[invalid-argument-type]
 
             )
         )
@@ -97,19 +97,19 @@ def extract_page_code(html: str) -> str | None:
     before the SPA has finished rendering that entry's data.
     """
     soup = BeautifulSoup(html, "html.parser")
-    core_view_summary = soup.find('div', 'core-view-summary')
+    core_view_summary = soup.find('div', class_='core-view-summary')
     if core_view_summary is None:
         return None
 
-    first_line = core_view_summary.find('div', 'core-view-line')
+    first_line = core_view_summary.find('div', class_='core-view-line')
     if first_line is None:
         return None
 
-    value_div = first_line.find('div', 'core-view-field-value')
+    value_div = first_line.find('div', class_='core-view-field-value')
     return None if value_div is None else value_div.get_text().strip().upper()
 
 @measure_execution_time
-def parse_country_summary(html :str, language :str ='en', alpha_2_code: str | None = None) -> dict[str, str]:
+def parse_country_summary(html :str, language :str ='en', alpha_2_code: str | None = None) -> dict[str, str | None]:
 
     if language not in ['en', 'fr']:
         raise ValueError('Unexpected language')
@@ -122,11 +122,11 @@ def parse_country_summary(html :str, language :str ='en', alpha_2_code: str | No
                  remark_part_3 = alpha_4_code = None
 
     try:
-        core_view_lines = soup.find('div', 'core-view-summary').find_all('div', 'core-view-line')
+        core_view_lines = soup.find('div', class_='core-view-summary').find_all('div', class_='core-view-line')  # ty: ignore[unresolved-attribute]
 
         for line in core_view_lines:
-            core_view_field_name_div = line.find('div', 'core-view-field-name')
-            core_view_field_value_div = line.find('div', 'core-view-field-value') 
+            core_view_field_name_div = line.find('div', class_='core-view-field-name')
+            core_view_field_value_div = line.find('div', class_='core-view-field-value')
             field_name = None if core_view_field_name_div is None else core_view_field_name_div.get_text()
             field_value = None if core_view_field_value_div is None else core_view_field_value_div.get_text()
 
@@ -194,7 +194,7 @@ def parse_country_additional_information(html: str, alpha_2_code: str | None = N
 
     soup = BeautifulSoup(html, "html.parser")
     additional_information_table: Tag | None = soup.find('div', id='country-additional-info')
-    additional_information_table_headers: ResultSet[Tag] = additional_information_table.find("thead").find_all("th")
+    additional_information_table_headers: ResultSet[Tag] = additional_information_table.find("thead").find_all("th")  # ty: ignore[unresolved-attribute]
 
     for i, header in enumerate(additional_information_table_headers):
         match header.text:
@@ -205,7 +205,7 @@ def parse_country_additional_information(html: str, alpha_2_code: str | None = N
             case "Local short name" | "Forme courte locale":
                 local_short_name_position = i
 
-    additional_information_table_body_rows = additional_information_table.find("tbody").find_all("tr")
+    additional_information_table_body_rows = additional_information_table.find("tbody").find_all("tr")  # ty: ignore[unresolved-attribute]
 
     additional_information: list[AdditionalInformation] = []
 
@@ -221,9 +221,9 @@ def parse_country_additional_information(html: str, alpha_2_code: str | None = N
             continue
 
         additional_information.append(
-            AdditionalInformation(administrative_language_alpha_2_code=data[administrative_language_alpha_2_position].get_text(),
-                                  administrative_language_alpha_3_code=data[administrative_language_alpha_3_position].get_text(),
-                                  local_short_name=data[local_short_name_position].get_text()))
+            AdditionalInformation(administrative_language_alpha_2_code=data[administrative_language_alpha_2_position].get_text(),  # ty: ignore[invalid-argument-type]
+                                  administrative_language_alpha_3_code=data[administrative_language_alpha_3_position].get_text(),  # ty: ignore[invalid-argument-type]
+                                  local_short_name=data[local_short_name_position].get_text()))  # ty: ignore[invalid-argument-type]
 
     return additional_information
 
@@ -239,7 +239,7 @@ def parse_country_subdivisions(html: str, alpha_2_code: str | None = None) -> li
         romanization_system_position = parent_subdivision_code_position = None
 
     subdivisions_table: Tag | None = soup.find('table', id='subdivision')
-    subdivisions_table_headers: ResultSet[Tag] | None = subdivisions_table.find("thead").find_all("th")
+    subdivisions_table_headers: ResultSet[Tag] | None = subdivisions_table.find("thead").find_all("th")  # ty: ignore[unresolved-attribute]
 
     for i, header in enumerate(subdivisions_table_headers):
         match header.text:
@@ -258,7 +258,7 @@ def parse_country_subdivisions(html: str, alpha_2_code: str | None = None) -> li
             case "Parent subdivision" | "Subdivision-mère":
                 parent_subdivision_code_position = i
 
-    subdivisions_table_body_rows = subdivisions_table.find('tbody').find_all("tr")
+    subdivisions_table_body_rows = subdivisions_table.find('tbody').find_all("tr")  # ty: ignore[unresolved-attribute]
     
     for subdivision_row in subdivisions_table_body_rows:
         subdivision_values = subdivision_row.find_all('td')
@@ -273,13 +273,13 @@ def parse_country_subdivisions(html: str, alpha_2_code: str | None = None) -> li
 
         subdivisions.append(
             Subdivision(
-                subdivision_category= none_if(subdivision_values[subdivision_category_position].get_text(),''),
-                subdivision_code= none_if(subdivision_values[subdivision_code_position].get_text().replace("*", ""),''),
-                subdivision_name= none_if(subdivision_values[subdivision_name_position].get_text(),''),
-                local_variant= none_if(subdivision_values[local_variant_position].get_text(),''),
-                language_code= none_if(subdivision_values[language_code_position].get_text(),''),
-                romanization_system= none_if(subdivision_values[romanization_system_position].get_text(),''),
-                parent_subdivision_code= none_if(subdivision_values[parent_subdivision_code_position].get_text(),'')
+                subdivision_category= none_if(subdivision_values[subdivision_category_position].get_text(),''),  # ty: ignore[invalid-argument-type]
+                subdivision_code= none_if(subdivision_values[subdivision_code_position].get_text().replace("*", ""),''),  # ty: ignore[invalid-argument-type]
+                subdivision_name= none_if(subdivision_values[subdivision_name_position].get_text(),''),  # ty: ignore[invalid-argument-type]
+                local_variant= none_if(subdivision_values[local_variant_position].get_text(),''),  # ty: ignore[invalid-argument-type]
+                language_code= none_if(subdivision_values[language_code_position].get_text(),''),  # ty: ignore[invalid-argument-type]
+                romanization_system= none_if(subdivision_values[romanization_system_position].get_text(),''),  # ty: ignore[invalid-argument-type]
+                parent_subdivision_code= none_if(subdivision_values[parent_subdivision_code_position].get_text(),'')  # ty: ignore[invalid-argument-type]
             )
         )
 
@@ -312,7 +312,7 @@ def parse_country_changes(html: str, alpha_2_code: str | None = None) -> list[Ch
         )
 
     changes_table = candidate_tables[-1]
-    changes_rows = changes_table.find('tbody').find_all('tr')
+    changes_rows = changes_table.find('tbody').find_all('tr')  # ty: ignore[unresolved-attribute]
 
     for change_row in changes_rows:
         change_values = change_row.find_all('td')
@@ -343,7 +343,7 @@ def parse_country(html: str, language :str ='en') -> Country:
 
     alpha_2_code = extract_page_code(html)
 
-    summary: dict[str, str] = parse_country_summary(html, language, alpha_2_code)
+    summary: dict[str, str | None] = parse_country_summary(html, language, alpha_2_code)
     subdivisions: list[Subdivision] = parse_country_subdivisions(html, alpha_2_code)
     changes: list[Change] = parse_country_changes(html, alpha_2_code)
     additional_information: list[AdditionalInformation] = parse_country_additional_information(html, alpha_2_code)

@@ -4,6 +4,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import date
+from logging import Logger
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +26,7 @@ from src.parser import (
 )
 from src.utils import measure_execution_time, save_file
 
-logger = get_logger(__name__)
+logger: Logger = get_logger(__name__)
 
 PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 
@@ -195,7 +196,9 @@ def fetch_country_html(
     # against the fetched page's own first summary field (see
     # extract_page_code), whatever code length that field holds.
     alpha_2_code = code_element.alpha_2_code
-    if alpha_2_code is not None and len(alpha_2_code) != 2:
+    if alpha_2_code is None:
+        return None
+    if len(alpha_2_code) != 2:
         logger.debug(f"[{alpha_2_code}] code is not a 2-letter alpha-2 code, likely a withdrawn ISO 3166-3 entry")
     file_name = f"{alpha_2_code}.html"
     file_path = downloaded_files_dir / file_name
@@ -257,7 +260,7 @@ def get_all_countries_additional_information(countries: list[Country]) -> list[d
 
 def generate_csv(input: list[dict[str, str]], file_path: Path, expected_columns: list[str]) -> None:
 
-    df = pd.DataFrame.from_dict(input, dtype=str)
+    df = pd.DataFrame(input, dtype=str)
     df = df[expected_columns]
 
     file_path.parent.mkdir(exist_ok=True, parents=True)

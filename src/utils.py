@@ -22,7 +22,7 @@ def measure_execution_time(func) :
 
     return wrapper
 
-def none_if(expression_1: str, expression_2: str) -> (None | str):
+def none_if(expression_1: str | None, expression_2: str) -> (None | str):
     """
     The none_if() function returns None if two expressions are equal, otherwise it returns the first expression.
     """

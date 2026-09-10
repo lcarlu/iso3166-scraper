@@ -1,4 +1,4 @@
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any
 
 
@@ -53,9 +53,9 @@ class Country:
     remark_part_1: str | None = None
     remark_part_2: str | None = None
     remark_part_3: str | None = None
-    subdivisions: list[Subdivision] | None = None
-    changes: list[Change] | None = None
-    additional_information: list[AdditionalInformation] | None = None
+    subdivisions: list[Subdivision] = field(default_factory=list)
+    changes: list[Change] = field(default_factory=list)
+    additional_information: list[AdditionalInformation] = field(default_factory=list)
 
     def get_subdivisions(self) -> list[dict[str, Any]]:
         return [
