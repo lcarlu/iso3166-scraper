@@ -18,7 +18,7 @@ import time
 
 from src.utils import measure_execution_time, save_file
 from src.classes import Country, CodeElement, CodeElementStatus
-from src.parser import parse_code_elements_statuses, parse_country_codes_collection, parse_country, extract_alpha_2_code
+from src.parser import parse_code_elements_statuses, parse_country_codes_collection, parse_country, extract_page_code
 from src.config.logger import get_logger
 
 logger = get_logger(__name__)
@@ -121,7 +121,7 @@ def get_country_html(driver, url: str, expected_alpha_2_code: str) -> str:
     # has finished rendering the requested country (it can briefly still show
     # the previous view), so wait until the rendered alpha-2 code actually
     # matches what was requested before trusting the page source.
-    wait.until(lambda d: extract_alpha_2_code(d.page_source) == expected_alpha_2_code)
+    wait.until(lambda d: extract_page_code(d.page_source) == expected_alpha_2_code)
 
     return driver.page_source
 
@@ -182,7 +182,15 @@ def fetch_country_html(
     if page_id is None:
         return None
 
+    # A handful of rows in the country codes collection table are withdrawn
+    # ISO 3166-3 entries identified by a 4-letter code (e.g. "DDDE" for the
+    # former East Germany) rather than a 2-letter alpha-2 code. That's still
+    # fine here: get_country_html_with_retries only compares this value
+    # against the fetched page's own first summary field (see
+    # extract_page_code), whatever code length that field holds.
     alpha_2_code = code_element.alpha_2_code
+    if alpha_2_code is not None and len(alpha_2_code) != 2:
+        logger.debug(f"[{alpha_2_code}] code is not a 2-letter alpha-2 code, likely a withdrawn ISO 3166-3 entry")
     file_name = f"{alpha_2_code}.html"
     file_path = downloaded_files_dir / file_name
 
@@ -302,7 +310,7 @@ def main() -> None:
         )
 
         for html in countries_html:
-            alpha_2_code = extract_alpha_2_code(html) or "UNKNOWN"
+            alpha_2_code = extract_page_code(html) or "UNKNOWN"
             try:
                 countries.append(parse_country(html, arguments.language))
             except Exception:

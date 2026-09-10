@@ -10,6 +10,19 @@ uv sync
 uv run iso3166-scraper
 ```
 
+### Usage
+
+```
+uv run iso3166-scraper [--language {en,fr}] [--download | --no-download] [--workers WORKERS] [--retries RETRIES]
+```
+
+| Flag | Default | Description |
+|:-|:-|:-|
+|`--language`|`en`|Language of the scraped content, `en` or `fr`|
+|`--download` / `--no-download`|`--download`|Download and checkpoint each page's HTML to disk before parsing; `--no-download` re-fetches everything in memory instead and skips reusing previously downloaded files|
+|`--workers`|`3`|Number of parallel browser workers used to download country pages|
+|`--retries`|`3`|Number of attempts per country page before giving up|
+
 Produce 4 files in an data/YYYYMMDD/ directory
 
 - countries.csv

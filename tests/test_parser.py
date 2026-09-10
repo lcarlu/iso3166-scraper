@@ -8,7 +8,8 @@ from src.parser import (
     parse_code_elements_statuses,
     parse_country_subdivisions,
     parse_country_additional_information,
-    extract_alpha_2_code,
+    parse_country_changes,
+    extract_page_code,
 )
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -75,13 +76,105 @@ def test_parse_country_codes_collection():
     assert ae.page_id == "#iso:code:3166:AE"
 
 
-def test_extract_alpha_2_code_matches_the_rendered_country():
+def test_parse_country_codes_collection_does_not_leak_status_across_rows():
+    # Regression test: td_class used to only be reassigned on a legend match
+    # and was never reset between rows, so a row whose status class isn't in
+    # the legend used to silently inherit the previous row's status instead
+    # of being None.
+    html = """
+    <html><body>
+        <table class="grs-grid-legend">
+            <tr><td class="grs-status1" width="5%"></td><td>Officially assigned code elements</td></tr>
+        </table>
+        <table class="grs-grid"><tbody><tr>
+            <td class="grs-status1" title="Andorra"><a href="#iso:code:3166:AD">AD</a></td>
+            <td class="grs-status9" title="Unknown"><a href="#iso:code:3166:ZZ">ZZ</a></td>
+        </tr></tbody></table>
+    </body></html>
+    """
+
+    statuses = parse_code_elements_statuses(html)
+    collection = parse_country_codes_collection(html, statuses)
+
+    ad, zz = collection
+    assert ad.status == "Officially assigned code elements"
+    assert zz.status is None
+
+
+def test_extract_page_code_matches_the_rendered_country():
     html = (FIXTURES_DIR / "country_page_ad.html").read_text()
-    assert extract_alpha_2_code(html) == "AD"
+    assert extract_page_code(html) == "AD"
 
 
-def test_extract_alpha_2_code_returns_none_when_summary_missing():
-    assert extract_alpha_2_code("<html><body>no summary here</body></html>") is None
+def test_extract_page_code_returns_none_when_summary_missing():
+    assert extract_page_code("<html><body>no summary here</body></html>") is None
+
+
+WITHDRAWN_ENTRY_HTML = """
+<html><body>
+    <div class="core-view-summary">
+        <div class="core-view-line">
+            <div class="core-view-field-name">Alpha-4 code</div>
+            <div class="core-view-field-value">DDDE</div>
+        </div>
+        <div class="core-view-line">
+            <div class="core-view-field-name">Short name</div>
+            <div class="core-view-field-value">GERMAN DEMOCRATIC REPUBLIC</div>
+        </div>
+    </div>
+    <table id="subdivision"><thead></thead><tbody></tbody></table>
+    <div id="country-additional-info">
+        <table><thead></thead><tbody></tbody></table>
+    </div>
+    <table><tbody></tbody></table>
+</body></html>
+"""
+
+
+def test_extract_page_code_returns_the_four_letter_code_for_withdrawn_entries():
+    # Regression test: withdrawn ISO 3166-3 entries (e.g. "DDDE" for the
+    # former East Germany) render a 4-letter code as the summary's first
+    # field instead of a 2-letter alpha-2 code. get_country_html_with_retries
+    # relies on this matching the code stored on the CodeElement for that
+    # row, so the retry/verification logic must return it as-is rather than
+    # assuming a 2-letter value.
+    assert extract_page_code(WITHDRAWN_ENTRY_HTML) == "DDDE"
+
+
+def test_parse_country_summary_for_withdrawn_entry_has_no_alpha_2_code():
+    # The "Alpha-2 code" field is simply absent for withdrawn entries, so it
+    # should stay None rather than being back-filled with the 4-letter code.
+    country = parse_country(WITHDRAWN_ENTRY_HTML, "en")
+
+    assert country.alpha_2_code is None
+    assert country.alpha_4_code == "DDDE"
+    assert country.short_name == "GERMAN DEMOCRATIC REPUBLIC"
+
+
+def test_parse_country_changes_ignores_table_order():
+    # Regression test: parse_country_changes used to grab tables[-1] ("the
+    # last table on the page"), which breaks if the changes table isn't
+    # positioned last. It's now identified by excluding the subdivisions and
+    # additional-information tables instead, so put the changes table first
+    # here to prove position no longer matters.
+    html = """
+    <html><body>
+        <table><tbody>
+            <tr><td>2020-01-01</td><td>Some change</td><td>Un changement</td></tr>
+        </tbody></table>
+        <table id="subdivision"><thead></thead><tbody></tbody></table>
+        <div id="country-additional-info">
+            <table><thead></thead><tbody></tbody></table>
+        </div>
+    </body></html>
+    """
+
+    changes = parse_country_changes(html, alpha_2_code="ZZ")
+
+    assert len(changes) == 1
+    assert changes[0].effective_date == "2020-01-01"
+    assert changes[0].short_description_en == "Some change"
+    assert changes[0].short_description_fr == "Un changement"
 
 
 def test_parse_country_subdivisions_skips_malformed_rows_instead_of_crashing():

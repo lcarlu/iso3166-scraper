@@ -57,6 +57,7 @@ def parse_country_codes_collection(html :str, code_elements_statuses :List[CodeE
         td_anchor = td.find('a')
         td_anchor_href = None # page_id
         td_text = td.get_text() # alpha_2_code
+        td_class = None # status
 
         if td_anchor is not None:
             td_anchor_href = td_anchor.get('href')
@@ -77,13 +78,15 @@ def parse_country_codes_collection(html :str, code_elements_statuses :List[CodeE
 
     return country_codes_collection
 
-def extract_alpha_2_code(html: str) -> Optional[str]:
+def extract_page_code(html: str) -> Optional[str]:
     """
-    Lightweight, language-agnostic extraction of the alpha-2 code, which is
-    always the summary table's first field. Used to verify a fetched country
-    page actually rendered the requested country before trusting it, since
-    the summary element can be present in the DOM before the SPA has
-    finished rendering that country's data.
+    Lightweight, language-agnostic extraction of the summary table's first
+    field. For current countries this is the alpha-2 code, but withdrawn
+    ISO 3166-3 entries render a 4-letter code there instead (e.g. "DDDE").
+    Either way it's the identifier that page is for, which is what callers
+    actually need: verifying a fetched page rendered the requested entry
+    before trusting it, since the summary element can be present in the DOM
+    before the SPA has finished rendering that entry's data.
     """
     soup = BeautifulSoup(html, "html.parser")
     core_view_summary = soup.find('div', 'core-view-summary')
@@ -284,11 +287,27 @@ CHANGE_COLUMN_COUNT = 3
 def parse_country_changes(html: str, alpha_2_code: Optional[str] = None) -> List[Change]:
 
     soup = BeautifulSoup(html, "html.parser")
-    tables = soup.find_all('table')
     changes: List[Change] = []
 
-    # Last table of the country page
-    changes_table = tables[-1]
+    # The changes table has no id/class of its own to select on, unlike the
+    # subdivisions and additional-information tables, so identify it by
+    # elimination instead of assuming it's positionally last: that assumption
+    # would silently parse the wrong table if the page ever grew another
+    # section after it.
+    other_table_ids = {id(soup.find('table', id='subdivision'))}
+    additional_information_div = soup.find('div', id='country-additional-info')
+    if additional_information_div is not None:
+        other_table_ids.add(id(additional_information_div.find('table')))
+
+    candidate_tables = [table for table in soup.find_all('table') if id(table) not in other_table_ids]
+
+    if len(candidate_tables) != 1:
+        logger.warning(
+            f"[{alpha_2_code}] expected exactly 1 candidate table for changes, "
+            f"found {len(candidate_tables)}, using the last one"
+        )
+
+    changes_table = candidate_tables[-1]
     changes_rows = changes_table.find('tbody').find_all('tr')
 
     for change_row in changes_rows:
@@ -318,7 +337,7 @@ def parse_country(html: str, language :str ='en') -> Country:
     if language not in ['en', 'fr']:
         raise Exception('Unexpected language')
 
-    alpha_2_code = extract_alpha_2_code(html)
+    alpha_2_code = extract_page_code(html)
 
     summary: Dict[str, str] = parse_country_summary(html, language, alpha_2_code)
     subdivisions: List[Subdivision] = parse_country_subdivisions(html, alpha_2_code)
